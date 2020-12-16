@@ -1,0 +1,8 @@
+enum Site { 
+  MELON,
+  GAON_DIGITAL,
+  GAON_DOWNLOAD,
+  GAON_STREAMING,
+  BUGS,
+  GENIE
+};
