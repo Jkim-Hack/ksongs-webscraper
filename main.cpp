@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <curl/curl.h>
 #include <vector>
 #include <exception>
 #include "constants.h"
