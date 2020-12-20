@@ -2,7 +2,8 @@
 #include <string>
 #include <vector>
 #include <exception>
-#include "constants.h"
+#include "constants.hpp"
+#include "melon_parser.hpp"
 
 // If the site cannot be found, throw this exception
 class ArgumentNotFoundException : public std::exception {
@@ -98,10 +99,24 @@ int main(int argc, char *argv[])
 	return EXIT_FAILURE;
     }
 
-    // TEST: print all the parsed sites
-    for (const auto &site : sites_to_parse) {
-	std::cout << site << std::endl;
-    }
 
+    // TEST: print all the parsed html nodes
+    MelonParser parser;
+    MelonInfo info;
+    info.start_date = "20100411";
+    info.end_date = "20100417";
+
+    parser.load_info(info);
+    parser.prepare_handle(0);
+
+    // TEST
+    for (auto week : parser.extracted_data) {
+	for (auto song : week.second) {
+	    std::cout << song.first << std::endl;
+	    std::cout << song.second.number_of_likes << std::endl;
+	    std::cout << "\n";
+	}
+    }
+    
     return EXIT_SUCCESS;
 }
