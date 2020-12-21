@@ -2,8 +2,10 @@
 #include <string>
 #include <vector>
 #include <exception>
-#include "constants.hpp"
-#include "melon_parser.hpp"
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+#include "output_writer.hpp"
 
 // If the site cannot be found, throw this exception
 class ArgumentNotFoundException : public std::exception {
@@ -99,24 +101,73 @@ int main(int argc, char *argv[])
 	return EXIT_FAILURE;
     }
 
-
-    // TEST: print all the parsed html nodes
     MelonParser parser;
-    MelonInfo info;
-    info.start_date = "20100411";
-    info.end_date = "20100417";
+    int number_of_weeks = 0;
+    std::stringstream start_buffer, end_buffer;
+    
+    /*
+    auto ymd_start {std::chrono::day(12)/std::chrono::April/2010};
+    auto sd_start = std::chrono::sys_days{ymd_start};
 
-    parser.load_info(info);
-    parser.prepare_handle(0);
+    sd_start += std::chrono::days(365);
 
+    std::time_t starting_date_c = std::chrono::system_clock::to_time_t(sd_start);
+    std::tm curr_start_date = *std::localtime(&starting_date_c);
+    
+    start_buffer << std::put_time(&curr_start_date, "%Y%m%d");
+    std::cout << start_buffer.str() << std::endl;
+    */
+    auto ymd_start {std::chrono::day(12)/std::chrono::April/2010};
+    auto sd_start = std::chrono::sys_days{ymd_start};
+    
+    do {
+	MelonInfo info;
+	
+	start_buffer.str(std::string());
+	end_buffer.str(std::string());
+
+	auto sd_end = sd_start + std::chrono::days(6);
+
+	std::time_t starting_date_c = std::chrono::system_clock::to_time_t(sd_start);
+	std::tm curr_start_date = *std::localtime(&starting_date_c);
+	
+	std::time_t ending_date_c = std::chrono::system_clock::to_time_t(sd_end);
+	std::tm curr_end_date = *std::localtime(&ending_date_c);
+
+	start_buffer << std::put_time(&curr_start_date, "%Y%m%d");
+	end_buffer << std::put_time(&curr_end_date, "%Y%m%d");
+
+	info.start_date = start_buffer.str();
+	info.end_date = end_buffer.str();
+	parser.load_info(info);
+
+	if (start_buffer.str().compare("20120805") == 0) 
+	    sd_start += std::chrono::days(8);
+	else
+	    sd_start += std::chrono::days(7);
+
+	number_of_weeks++;
+
+    } while (start_buffer.str().compare("20201214") != 0);
+
+    std::cout << "Number of weeks: " << number_of_weeks << std::endl;
+    
+    for (int i = 0; i < number_of_weeks; ++i) {
+	parser.prepare_handle(i);
+    }
+
+    /*
     // TEST
     for (auto week : parser.extracted_data) {
 	for (auto song : week.second) {
 	    std::cout << song.first << std::endl;
-	    std::cout << song.second.number_of_likes << std::endl;
+	    std::cout << song.second.title << std::endl;
 	    std::cout << "\n";
 	}
     }
+    */
+    OutputWriter writer(MELON);
+    writer.execute_output(parser.extracted_data);
     
     return EXIT_SUCCESS;
 }

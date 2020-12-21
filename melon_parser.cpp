@@ -24,11 +24,11 @@ size_t MelonParser::write(void *ptr, size_t size, size_t nmemb, std::string *dat
 // Prepare libcurl for get request
 void MelonParser::prepare_handle(int index) 
 {
+    std::cout << "prepare_handle\n";
     struct curl_slist *chunk = NULL;
     std::string response_string;
     SiteInfo info = this->site_infos.at(index);
     if (curl) {
-	std::cout << "Preparing...\n";
 	chunk = curl_slist_append(chunk, "Cookie: PCID=16080592268936819734880");
 	chunk = curl_slist_append(chunk, "PC_PCID=16080592268936819734880");
 	chunk = curl_slist_append(chunk, "POC=MP10");
@@ -36,22 +36,25 @@ void MelonParser::prepare_handle(int index)
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &MelonParser::write);    
+	std::cout << info.url << std::endl;
 	curl_easy_perform(curl);
 	std::map<int, Song> week_data = MelonParser::parse(response_string.c_str());
-	extracted_data.insert(std::pair<long, std::map<int, Song>>(std::stol(info.start_date), week_data));
+	extracted_data.insert(std::pair<std::string, std::map<int, Song>>(info.start_date, week_data));
+	std::cout << "Week " << index << " done\n";
     }
 }
 
 std::string MelonParser::generate_url(MelonInfo info)
 { 
     std::string start_year = info.start_date.substr(0, 4);
-    int start_year_int = std::stoi(start_year.c_str());
+    std::string end_year = info.end_date.substr(0, 4);
+    int end_year_int = std::stoi(end_year);
     std::string url;
-    if (start_year_int >= 2020) {
-	url = "https://www.melon.com/chart/week/index.htm?classCd=GN0000&moved=Y&startDay=" + info.start_date + "&endDay=" + info.end_date;
-    } else if (start_year_int < 2020 && start_year_int >= 2010) {
-	std::string month = info.start_date.substr(4, 2);
-	url = "https://www.melon.com/chart/search/list.htm?chartType=WE&age=2010&year=" + start_year + "&mon=" + month + "&day=" + info.start_date +"^" + info.end_date + "&classCd="+ info.gn_dp_id +"0000&startDay="+info.start_date+"&endDay="+info.end_date+"&moved=Y";
+    std::string month = info.start_date.substr(4, 2);
+    if (end_year_int == 2020) {
+	url = "https://www.melon.com/chart/week/index.htm?chartType=WE&age=2020&year=2020&mon=" + month + "&day=" + info.start_date + "%5E" + info.end_date + "&classCd=GN0000&startDay=" + info.start_date + "&endDay=" + info.end_date + "&moved=Y";
+    } else if (end_year_int < 2020 && end_year_int >= 2010) {
+	url = "https://www.melon.com/chart/search/list.htm?chartType=WE&age=2010&year=" + start_year + "&mon=" + month + "&day=" + info.start_date +"%5E"+ info.end_date + "&classCd="+ info.gn_dp_id +"0000&startDay="+info.start_date+"&endDay="+info.end_date+"&moved=Y";
     } else {
 	// TODO: Throw exception
     }
@@ -65,7 +68,7 @@ std::map<std::string, std::string> get_node_attrs(myhtml_tree_node_t *node)
     
     while (attr) {
         const char *name = myhtml_attribute_key(attr, NULL);
-        if(name) {
+	if(name) {
             const char *value = myhtml_attribute_value(attr, NULL);
 	    attributes.insert(std::pair<std::string, std::string>(name, value));
         }
@@ -73,6 +76,13 @@ std::map<std::string, std::string> get_node_attrs(myhtml_tree_node_t *node)
         attr = myhtml_attribute_next(attr);
     }
     return attributes;
+}
+
+std::string extract_id(std::string text) 
+{
+    size_t first = text.find_first_of("'");
+    size_t last = text.find_last_of("'");
+    return text.substr(first + 1, last-first-1);
 }
 
 Song scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) 
@@ -109,14 +119,24 @@ Song scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)
 			myhtml_tree_node_t* second_div_node = sub_div_nodes->list[1];
 			myhtml_collection_t* second_div_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_node, MyHTML_TAG_DIV, NULL);
 
-			myhtml_tree_node_t* artist_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[0], MyHTML_TAG_A, NULL)->list[0];
-			artist_node = myhtml_node_child(artist_node);
-	
+			myhtml_collection_t* artist_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[0], MyHTML_TAG_A, NULL);
+			std::string artist_id; 
+			if (artist_nodes->length < 1) {
+			    artist_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[0], MyHTML_TAG_SPAN, NULL);
+			    artist_id = "-";
+			} else {
+			    artist_id = extract_id(get_node_attrs(artist_nodes->list[0])["href"]);
+			}
+			myhtml_tree_node_t* artist_node = myhtml_node_child(artist_nodes->list[0]);
+
 			myhtml_tree_node_t* album_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[1], MyHTML_TAG_A, NULL)->list[0];
+			std::string album_id = extract_id(get_node_attrs(album_node)["href"]);
 			album_node = myhtml_node_child(album_node);
 
 			song_info.artist = myhtml_node_text(artist_node, NULL);
 			song_info.album = myhtml_node_text(album_node, NULL);	
+			song_info.artist_id = artist_id;
+			song_info.album_id = album_id;
 		    }
 		    break;
 		    }
@@ -159,6 +179,7 @@ std::string MelonParser::generate_like_count_url(std::vector<long> song_ids)
 
 std::vector<long> extract_song_ids(std::map<int, Song> week_data) 
 {
+    std::cout << "extract_song_ids\n";
     std::vector<long> song_ids;
     for (int i = 1; i < 101; ++i) {
 	long id = week_data[i].song_id;
@@ -169,6 +190,7 @@ std::vector<long> extract_song_ids(std::map<int, Song> week_data)
 
 void MelonParser::get_like_count(std::map<int, Song>* week_data)
 {
+    std::cout << "get_like_count\n";
     std::string response_string;
     if (curl) {
 	std::vector<long> extracted_song_ids = extract_song_ids(*week_data);
@@ -189,7 +211,6 @@ void MelonParser::get_like_count(std::map<int, Song>* week_data)
 
 std::map<int, Song> MelonParser::parse(const char* html_buffer)
 {
-    std::cout << "Parsing..." << std::endl;
     // Sets up html parser and gets tree 
     myhtml_t* myhtml = myhtml_create();
     myhtml_init(myhtml, MyHTML_OPTIONS_DEFAULT, 1, 0);

@@ -16,6 +16,8 @@ typedef struct Song {
     std::string title;
     std::string artist;
     std::string album;
+    std::string artist_id;
+    std::string album_id;
 } Song;
 
 class Parser {
@@ -26,7 +28,7 @@ class Parser {
 	const char* generate_url(SiteInfo info);
 	virtual std::map<int, Song> parse(const char* html_buffer) = 0;
     public:
-	std::map<long, std::map<int, Song>> extracted_data;
+	std::map<std::string, std::map<int, Song>> extracted_data;
 	Parser();
 	~Parser();
 	void load_info(SiteInfo site_info);
