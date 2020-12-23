@@ -105,18 +105,6 @@ int main(int argc, char *argv[])
     int number_of_weeks = 0;
     std::stringstream start_buffer, end_buffer;
     
-    /*
-    auto ymd_start {std::chrono::day(12)/std::chrono::April/2010};
-    auto sd_start = std::chrono::sys_days{ymd_start};
-
-    sd_start += std::chrono::days(365);
-
-    std::time_t starting_date_c = std::chrono::system_clock::to_time_t(sd_start);
-    std::tm curr_start_date = *std::localtime(&starting_date_c);
-    
-    start_buffer << std::put_time(&curr_start_date, "%Y%m%d");
-    std::cout << start_buffer.str() << std::endl;
-    */
     auto ymd_start {std::chrono::day(12)/std::chrono::April/2010};
     auto sd_start = std::chrono::sys_days{ymd_start};
     
@@ -156,16 +144,6 @@ int main(int argc, char *argv[])
 	parser.prepare_handle(i);
     }
 
-    /*
-    // TEST
-    for (auto week : parser.extracted_data) {
-	for (auto song : week.second) {
-	    std::cout << song.first << std::endl;
-	    std::cout << song.second.title << std::endl;
-	    std::cout << "\n";
-	}
-    }
-    */
     OutputWriter writer(MELON);
     writer.execute_output(parser.extracted_data);
     

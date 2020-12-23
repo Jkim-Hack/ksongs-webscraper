@@ -13,6 +13,5 @@ class OutputWriter {
 	OutputWriter(Site site_to_use, std::string filepath): site_to_use(site_to_use), filepath(filepath){};
 	void set_output(std::string filepath);
 	void set_site_to_use(Site site_to_use);
-    /*
 	void execute_output(std::map<std::string, std::map<int, Song>> data);
 };

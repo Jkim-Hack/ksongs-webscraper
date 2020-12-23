@@ -30,6 +30,7 @@ void OutputWriter::execute_output(std::map<std::string, std::map<int, Song>> dat
 	    output << "Start Date" << "," << "End Date" << "," << "Rank" << "," << "Title" << "," << "Artist" << "," << "Album" << "," << "# Likes" << "," << "Artist ID" << "," << "Album ID";
 	    break;
 	case GAON_DIGITAL:
+	    // TODO: IMPLEMENT
 	    break;
 	case GAON_DOWNLOAD:
 	    break;
@@ -48,7 +49,7 @@ void OutputWriter::execute_output(std::map<std::string, std::map<int, Song>> dat
 	    std::stringstream buffer;
 	    Song song = song_data.second;
 	    std::istringstream end_date_stream(week_data.first);
-	    
+
 	    struct std::tm tm;
 	    end_date_stream >> std::get_time(&tm, "%Y%m%d");
 	    std::time_t end_time_t = mktime(&tm);
@@ -64,6 +65,8 @@ void OutputWriter::execute_output(std::map<std::string, std::map<int, Song>> dat
 		output << start_date_normalize << "," <<  end_date_normalize << "," << song.rank << ",\"" 
 		    << song.title << "\",\"" << song.artist << "\",\"" << song.album << "\"," << song.number_of_likes
 		    << "," << song.artist_id << "," << song.album_id;
+	    } else if (this->site_to_use == GAON_DIGITAL) {
+		// TODO: IMPLEMENT
 	    }
 	    output << "\n";
 	}
