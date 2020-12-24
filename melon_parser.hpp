@@ -8,13 +8,11 @@ typedef struct MelonInfo : SiteInfo {
 class MelonParser : public Parser 
 { 
     private:
-	std::string generate_url(MelonInfo info);
-	std::string generate_like_count_url(std::vector<long> song_ids);
+	void generate_url(MelonInfo *info);
+    	Song scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node);
 	void get_like_count(std::map<int, Song>* week_data);
-	static size_t write(void *ptr, size_t size, size_t nmemb, std::string *data);	
+	std::string generate_like_count_url(std::vector<long> song_ids);
     public:
-	void prepare_handle(int index);
-	void load_info(MelonInfo info);
-	const char* request_html();
+	void load_info(MelonInfo *info);
 	std::map<int, Song> parse(const char* html_buffer);
 };

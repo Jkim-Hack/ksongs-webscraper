@@ -16,10 +16,11 @@ typedef struct GaonInfo : SiteInfo {
 class GaonParser : Parser 
 {
     private:
-	std::string generate_url(GaonInfo info);
-	static size_t write(void *ptr, size_t size, size_t nmemb, std::string *data);
+	void generate_url(GaonInfo *info);
+	std::vector<long> extract_song_ids(std::map<int, Song> week_data);
     public:
-	void prepare_handle(int index);
-	void load_info(GaonInfo info);
+	void load_info(GaonInfo *info);
+	void extract_dates(SiteInfo *info, const char* html_buffer);
+	Song scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node);
 	std::map<int, Song> parse(const char* html_buffer);
 };
