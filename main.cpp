@@ -1,4 +1,3 @@
-#include <iostream>
 #include <string>
 #include <vector>
 #include <exception>
@@ -32,7 +31,7 @@ int arg_checker(int argc)
 }
 
 // Adds all the sites into the parser payload
-void add_all_sites(std::vector<enum Site> *sites_to_parse)
+void add_all_sites(std::vector<enum SITE> *sites_to_parse)
 {
     sites_to_parse->push_back(GENIE);
     sites_to_parse->push_back(BUGS);
@@ -43,7 +42,7 @@ void add_all_sites(std::vector<enum Site> *sites_to_parse)
 }
 
 // Adds a single site based off the string. If none match, print and throw exception
-void add_site(std::vector<enum Site> *sites_to_parse, std::string site_string)
+void add_site(std::vector<enum SITE> *sites_to_parse, std::string site_string)
 {
     if (!site_string.compare("melon")) {
 	sites_to_parse->push_back(MELON);
@@ -67,9 +66,9 @@ void add_site(std::vector<enum Site> *sites_to_parse, std::string site_string)
 }
 
 // Processes all sites and places them into a payload to parse
-std::vector<enum Site> process_sites(int argc, char *argv[]) 
+std::vector<enum SITE> process_sites(int argc, char *argv[]) 
 {
-    std::vector<enum Site> sites_to_parse;
+    std::vector<enum SITE> sites_to_parse;
     std::string first(argv[1]);
     if (first.compare("all") == 0) {
 	add_all_sites(&sites_to_parse);
@@ -90,8 +89,9 @@ int main(int argc, char *argv[])
       return EXIT_SUCCESS;
     }
     
+    SiteThreadManager thread_manager;
     // Payload to parse
-    std::vector<enum Site> sites_to_parse;
+    std::vector<enum SITE> sites_to_parse;
 
     // See if all the arguments are correctly spelled
     try {
@@ -101,7 +101,8 @@ int main(int argc, char *argv[])
 	return EXIT_FAILURE;
     }
 
-    MelonParser parser;
+    // MELON
+    /*
     int number_of_weeks = 0;
     std::stringstream start_buffer, end_buffer;
     
@@ -127,7 +128,8 @@ int main(int argc, char *argv[])
 
 	info.start_date = start_buffer.str();
 	info.end_date = end_buffer.str();
-	parser.load_info(info);
+
+	thread_manager.load_site_info(&info);
 
 	if (start_buffer.str().compare("20120805") == 0) 
 	    sd_start += std::chrono::days(8);
@@ -139,13 +141,31 @@ int main(int argc, char *argv[])
     } while (start_buffer.str().compare("20201214") != 0);
 
     std::cout << "Number of weeks: " << number_of_weeks << std::endl;
+    */
+
+
+    for (int i = 17; i < 53; ++i) {
+	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
+	info->site_type = GAON_DIGITAL;
+	info->week = i;
+	info->year = 2010;
+	info->type = DIGITAL;
+	thread_manager.load_site_info(info);
+    }
+
+    thread_manager.load_all_sites_to_execution_queue();
+    thread_manager.execute_all();
+    std::map<std::string, std::map<int, Song*>>* data = thread_manager.get_extracted_data();
     
-    for (int i = 0; i < number_of_weeks; ++i) {
-	parser.prepare_handle(i);
+    for (auto const& [start_date, song_info] : *data) {
+	std::cout << "For date: " << start_date << std::endl;
+	for (auto const& [rank, song] : song_info) {
+	    GaonSong *gaon_song = dynamic_cast<GaonSong*>(song);
+	    std::cout << rank << " : " << gaon_song->title << " - " << gaon_song->gaon_index << std::endl;  
+	}
     }
 
     OutputWriter writer(MELON);
-    writer.execute_output(parser.extracted_data);
     
     return EXIT_SUCCESS;
 }

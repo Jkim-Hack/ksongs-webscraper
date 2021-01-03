@@ -1,22 +1,25 @@
-#include "gaon_parser.hpp"
+#include "parser.hpp"
 #include <iostream>
 #include <curl/curl.h>
 #include <algorithm>
-#include <array>
 
-void GaonParser::generate_url(GaonInfo *info) 
+void GaonParser::generate_url(std::shared_ptr<SiteInfo> site_info) 
 {
-    std::string url;
-    if (info->type == DIGITAL) {
-	url = "http://gaonchart.co.kr/main/section/chart/online.gaon?nationGbn=T&serviceGbn=ALL&targetTime=" + std::to_string(info->week) + "&hitYear=" + std::to_string(info->year) + "&termGbn=week";
-    } else if (info->type == DOWNLOAD) {
-	url = "http://gaonchart.co.kr/main/section/chart/online.gaon?nationGbn=T&serviceGbn=S1020&targetTime=" + std::to_string(info->week) + "&hitYear=" + std::to_string(info->year) + "&termGbn=week";
-    } else if (info->type == STREAMING) { 
-	url = "http://gaonchart.co.kr/main/section/chart/online.gaon?nationGbn=T&serviceGbn=S1040&targetTime=" + std::to_string(info->week) + "&hitYear=" + std::to_string(info->year) + "&termGbn=week";
+    if (std::shared_ptr<GaonInfo> info = std::dynamic_pointer_cast<GaonInfo>(site_info)) {
+	std::string url;
+	if (info->type == DIGITAL) {
+	    url = "http://gaonchart.co.kr/main/section/chart/online.gaon?nationGbn=T&serviceGbn=ALL&targetTime=" + std::to_string(info->week) + "&hitYear=" + std::to_string(info->year) + "&termGbn=week";
+	} else if (info->type == DOWNLOAD) {
+	    url = "http://gaonchart.co.kr/main/section/chart/online.gaon?nationGbn=T&serviceGbn=S1020&targetTime=" + std::to_string(info->week) + "&hitYear=" + std::to_string(info->year) + "&termGbn=week";
+	} else if (info->type == STREAMING) { 
+	    url = "http://gaonchart.co.kr/main/section/chart/online.gaon?nationGbn=T&serviceGbn=S1040&targetTime=" + std::to_string(info->week) + "&hitYear=" + std::to_string(info->year) + "&termGbn=week";
+	} else {
+	    // TODO: Exception
+	}
+	info->url = url;
     } else {
 	// TODO: Exception
     }
-    info->url = url;
 }
 
 std::string GaonParser::generate_song_url(long song_id, enum SITE site)
@@ -38,27 +41,9 @@ std::string GaonParser::generate_song_url(long song_id, enum SITE site)
     return "http://gaonchart.co.kr/main/section/chart/ReturnUrl.gaon?serviceGbn=ALL&seq_company=" + std::to_string(company) + "&seq_mom=" + std::to_string(song_id);
 }
 
-std::array<long, 2> extract_ids_from_js(std::string attr_string, std::string delim)
+void GaonParser::scrape_melon_song(std::shared_ptr<GaonSong> curr_song, std::string html)
 {
-    std::array<long, 2> ids;
-    size_t left = attr_string.find_first_of("(");
-    size_t right = attr_string.find_first_of(")");
-    std::string js_code = attr_string.substr(left + 1, right - 1);
-
-    if (delim.length() == 0) {
-	ids[0] = std::stol(js_code);
-	ids[1] = 0;
-    } else {
-	size_t delim_pos = js_code.find(delim);
-	ids[0] = std::stol(js_code.substr(1, delim_pos - 1));
-	ids[1] = std::stol(js_code.substr(delim_pos + 1, js_code.length() - delim_pos - 2));
-    }
-
-    return ids;
-}
-
-void GaonParser::scrape_melon_song(GaonSong *curr_song, std::string html)
-{
+    std::cout << __func__ << std::endl;
     ID melon_ids;
     
     // Setup parser
@@ -69,33 +54,19 @@ void GaonParser::scrape_melon_song(GaonSong *curr_song, std::string html)
     
     myhtml_tree_node_t *node = myhtml_tree_get_document(tree);
     
-    // Getting song id
-    myhtml_collection_t *title_nodes = myhtml_get_nodes_by_attribute_value_whitespace_separated(tree, NULL, node, true, "class", 5, "title", 5, NULL);
-    myhtml_tree_node_t *title_node = title_nodes->list[0];
-    myhtml_tree_node_t *a_node = myhtml_node_next(title_node);  
-    std::map<std::string, std::string> node_attrs = get_node_attrs(a_node);
-    std::string href_string = node_attrs["href"];
-    melon_ids.song_id = extract_ids_from_js(href_string, ",")[1];
+    MelonParser::scrape_album(&melon_ids, tree, node, curr_song->title);
 
-    // Getting artist id
-    myhtml_collection_t *a_nodes = myhtml_get_nodes_by_attribute_value(tree, NULL, node, true, "class", 5, "artist_name", 11, NULL);
-    node_attrs = get_node_attrs(a_nodes->list[0]);
-    href_string = node_attrs["href"];
-    melon_ids.artist_id = extract_ids_from_js(href_string, "")[0];
+    std::cout << melon_ids.song_id << " : " << melon_ids.album_id << " : " << melon_ids.artist_ids.size() << std::endl; 
 
-    // Getting album id
-    myhtml_collection_t *button_nodes = myhtml_get_nodes_by_attribute_key(tree, NULL, node, "data-album-no", 13, NULL);
-    node_attrs = get_node_attrs(button_nodes->list[0]);
-    melon_ids.album_id = std::stol(node_attrs["data-album-no"]);
-  
     // Finally add to the song's final output map
     curr_song->site_ids.insert(std::pair<SITE, ID>(MELON, melon_ids));
     
     myhtml_tree_destroy(tree); 
 }
 
-void GaonParser::scrape_bugs_song(GaonSong *curr_song, std::string html)
+void GaonParser::scrape_bugs_song(std::shared_ptr<GaonSong> curr_song, std::string html)
 {
+    std::cout << __func__ << std::endl;
     ID bugs_ids;
 
     // Setup parser
@@ -104,35 +75,77 @@ void GaonParser::scrape_bugs_song(GaonSong *curr_song, std::string html)
     const char* html_buffer = html.c_str();
     myhtml_parse(tree, MyENCODING_UTF_8, html_buffer, strlen(html_buffer));
     
-    myhtml_tree_node_t *node = myhtml_tree_get_document(tree);
+    std::cout << "Target: " << curr_song->title << std::endl;
     
+    myhtml_tree_node_t *node = myhtml_tree_get_document(tree);
+    std::string target_title = curr_song->title;
     // Getting parent table
-    myhtml_tree_node_t *table_node = myhtml_get_nodes_by_attribute_value_whitespace_separated(tree, NULL, node, true, "class", 5, "trackList", 9, NULL)->list[0];
+    std::string table_attr = "list trackList byAlbum";
+    myhtml_collection_t *table_nodes = myhtml_get_nodes_by_attribute_value(tree, NULL, node, false, "class", 5, table_attr.c_str(), table_attr.size(), NULL);
+    
+    if (table_nodes->length < 1) {
+	std::cout << "INVALID HTML" << std::endl;
+	bugs_ids.song_id = 0;
+	bugs_ids.album_id = 0;
+	bugs_ids.artist_ids.push_back(0);
+	return;
+    }
 
     // Get inner tbody
-    myhtml_tree_node_t *tbody_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, table_node, MyHTML_TAG_TBODY, NULL)->list[0];
-    // Get inner tr nodes
-    myhtml_collection_t *tr_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, tbody_node, MyHTML_TAG_TR, NULL);
+    myhtml_collection_t *tbody_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, table_nodes->list[0], MyHTML_TAG_TBODY, NULL);
+    
+    for (size_t j = 0; j < tbody_nodes->length; ++j) {
+	myhtml_tree_node_t *tbody_node = tbody_nodes->list[j];
+	// Get inner tr nodes
+	myhtml_collection_t *tr_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, tbody_node, MyHTML_TAG_TR, NULL);
+	std::cout << "here" << std::endl;
+	for (int i = 0; i < tr_nodes->length; ++i) {
+	    myhtml_collection_t *p_nodes = myhtml_get_nodes_by_attribute_value(tree, NULL, tr_nodes->list[i], false, "class", 5, "title", 5, NULL);
+	    if (p_nodes->length > 0) {
+		myhtml_tree_node_t *title_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, p_nodes->list[0], MyHTML_TAG_A, NULL)->list[0];
+		if (title_node == NULL) {
+		    title_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, p_nodes->list[0], MyHTML_TAG_SPAN, NULL)->list[1];
+		}
+		std::string curr_title = myhtml_node_text(myhtml_node_child(title_node), NULL);
+		std::cout <<  curr_title << std::endl;
+		if (find_case_insensitive(target_title, curr_title)) {
+		    std::cout << target_title << std::endl;
+		    std::map<std::string, std::string> attrs = get_node_attrs(tr_nodes->list[i]);
+		    bugs_ids.song_id = std::stol(attrs["trackid"]);
+		    bugs_ids.album_id = std::stol(attrs["albumid"]);
 
-    // Iterate through each node until there's an mvid != 0. Then we have found our desired song
-    for (int i = 0; i < tr_nodes->length; ++i) {
-	std::map<std::string, std::string> attrs = get_node_attrs(tr_nodes->list[i]);
-	if (std::stol(attrs["mvid"]) != 0) {
-	    bugs_ids.song_id = std::stol(attrs["trackid"]);
-	    bugs_ids.artist_id = std::stol(attrs["artistid"]);
-	    bugs_ids.album_id = std::stol(attrs["albumid"]);
-	    break;
+		    // More than one artist?
+		    if (attrs["multiartist"].compare("Y") != 0) {
+			// Yes
+			bugs_ids.artist_ids.push_back(std::stol(attrs["artistid"]));
+		    } else {
+			// No
+			myhtml_tree_node_t *artist_node = myhtml_get_nodes_by_attribute_value(tree, NULL, tr_nodes->list[i], false, "class", 5, "artist", 6, NULL)->list[0];
+			myhtml_collection_t *artist_a_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, artist_node, MyHTML_TAG_A, NULL);
+			std::map<std::string, std::string> attrs = get_node_attrs(artist_a_nodes->list[1]);
+			std::vector<long> ids = extract_ids_from_js(attrs["onclick"]);
+			for (auto &artist_id : ids) {
+			    bugs_ids.artist_ids.push_back(artist_id);
+			}
+		    }
+		    break;
+		}
+	    }
 	}
     }
     
+    std::cout << bugs_ids.song_id << " : " << bugs_ids.album_id << " : " << bugs_ids.artist_ids.size() << std::endl; 
     curr_song->site_ids.insert(std::pair<SITE, ID>(BUGS, bugs_ids));
- 
     myhtml_tree_destroy(tree); 
 }
 
-void GaonParser::scrape_genie_song(GaonSong *curr_song, std::string html)
+void GaonParser::scrape_genie_song(std::shared_ptr<GaonSong> curr_song, std::string html)
 {
+    std::cout << __func__ << curr_song->title<< std::endl;
     ID genie_ids;
+
+    genie_ids.album_id = 0;
+    genie_ids.song_id = 0;
 
     myhtml_tree_t* tree = myhtml_tree_create();
     myhtml_tree_init(tree, myhtml);
@@ -142,70 +155,104 @@ void GaonParser::scrape_genie_song(GaonSong *curr_song, std::string html)
     myhtml_tree_node_t *node = myhtml_tree_get_document(tree);
     
     // Getting album id
-    myhtml_tree_node_t *album_node = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, node, true, "onclick", 7, "fnPlayAlbum", 11, NULL)->list[0];
-    std::map<std::string, std::string> attrs = get_node_attrs(album_node);
-    std::string onclick_attr = attrs["onclick"];
-    genie_ids.album_id = extract_ids_from_js(onclick_attr, ",")[0];
+    myhtml_collection_t *album_nodes = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, node, true, "onclick", 7, "fnPlayAlbum", 11, NULL);
+
+    if (album_nodes->length < 1) {
+	std::cout << "Failed to scrape Album section" << std::endl;
+    	return;
+    } else {
+	myhtml_tree_node_t *album_node = album_nodes->list[0];
+	std::map<std::string, std::string> attrs = get_node_attrs(album_node);
+	std::string onclick_attr = attrs["onclick"];
+	genie_ids.album_id = extract_ids_from_js(onclick_attr)[0];
+    }
+
+    std::cout << "Target: " << curr_song->title << std::endl;
+
+    myhtml_collection_t *tbody_nodes = myhtml_get_nodes_by_tag_id(tree, NULL, MyHTML_TAG_TBODY, NULL);
+    for (size_t j = 0; j < tbody_nodes->length; ++j) {
+	myhtml_tree_node_t *tbody_node = tbody_nodes->list[j];
+	if (tbody_node == NULL) {
+	    std::cout << "Failed to scrape song/artist section" << std::endl;
+	    return;
+	}
+
+	myhtml_collection_t *tr_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, tbody_node, MyHTML_TAG_TR, NULL);
+
+	for (int i = 0; i < tr_nodes->length; ++i) {
+	    // Getting song id
+	    std::map<std::string, std::string> attrs = get_node_attrs(tr_nodes->list[i]);
+	    std::string song_id = attrs["songid"];
+	    myhtml_tree_node_t *input_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, tr_nodes->list[i], MyHTML_TAG_INPUT, NULL)->list[0];
+	    if (input_node != NULL) {
+		std::string curr_title = get_node_attrs(input_node)["title"];
+		if (find_case_insensitive(curr_song->title, curr_title)) {
+		    std::cout << curr_title << std::endl;
+		    genie_ids.song_id = extract_ids_from_js(song_id)[0];
+		    // Getting artist id
+		    myhtml_tree_node_t *artist_node = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_nodes->list[i], true, "onclick", 7, "fnViewArtist", 12, NULL)->list[0];
+		    attrs = get_node_attrs(artist_node);
+		    std::string onclick_attr = attrs["onclick"];
+		    genie_ids.artist_ids.push_back(extract_ids_from_js(onclick_attr)[0]);
+		    break;
+		}
+	    }
+	}
+    }
     
-    // Getting artist id
-    myhtml_tree_node_t *artist_node = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, node, true, "onclick", 7, "fnViewArtist", 11, NULL)->list[0];
-    attrs = get_node_attrs(artist_node);
-    onclick_attr = attrs["onclick"];
-    genie_ids.artist_id = extract_ids_from_js(onclick_attr, ",")[0];
-
-    // Getting song id
-    myhtml_tree_node_t *song_node = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, node, true, "onclick", 7, "fnPlaySong('", 11, NULL)->list[0];
-    attrs = get_node_attrs(song_node);
-    onclick_attr = attrs["onclick"];
-    genie_ids.song_id = extract_ids_from_js(onclick_attr, ",")[0];
-
+    std::cout << genie_ids.song_id << " : " << genie_ids.album_id << " : " << genie_ids.artist_ids.size() << std::endl; 
     // Finally add to the final output
     curr_song->site_ids.insert(std::pair<SITE, ID>(GENIE, genie_ids));
-
+    
     myhtml_tree_destroy(tree); 
 }
 
 std::map<SITE, long> GaonParser::get_all_song_ids(myhtml_collection_t *li_nodes)
 {
-    myhtml_tree_node_t *melon_node = li_nodes->list[0];
-    myhtml_tree_node_t *bugs_node = li_nodes->list[1];
-    myhtml_tree_node_t *genie_node = li_nodes->list[2];
-
-    myhtml_tree_node_t *nodes[] = {melon_node, bugs_node, genie_node};
+    std::cout << __func__ << std::endl;
     std::map<SITE, long> all_song_ids;
 
     // Enumerate over the SITE enums to Genie
     for (int i = MELON; i <= GENIE; ++i) {
-	std::map<std::string, std::string> node_attrs = get_node_attrs(nodes[i]);
+	myhtml_tree_node_t *a_node = myhtml_node_child(li_nodes->list[i]);
+	std::map<std::string, std::string> node_attrs = get_node_attrs(a_node);
 	std::string href_string = node_attrs["href"];
-	
 	SITE site = (SITE)i;
-	all_song_ids[site] = extract_ids_from_js(href_string, ",")[1];
+	all_song_ids[site] = extract_ids_from_js(href_string)[1];
     }
 
     return all_song_ids;
 }
 
-void GaonParser::extract_all_ids(GaonSong *curr_song, myhtml_collection_t *li_nodes)
+void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_collection_t *li_nodes)
 {
+    std::cout << __func__ << std::endl;
     std::map<SITE, long> song_ids = get_all_song_ids(li_nodes);
     for (auto const& [site, song_id] : song_ids) {
+	std::string url = generate_song_url(song_id, site);
+	std::string html = request_html(url);
+	size_t left = html.find_first_of("HREF=");
+	size_t right = html.find_first_of(">", left);
+	size_t http_pos = url.find_first_of("p");
+	url = html.substr(left+6, right - (left+6));	
+	url.erase(std::remove(url.begin(), url.end(), '\t'), url.end());
+	url.erase(std::remove(url.begin(), url.end(), '\"'), url.end());
+	
 	switch(site) {
 	    case MELON:
 		{
-		    std::string url = generate_song_url(song_id, site);
+		    url.insert(http_pos+1, "s");
 		    scrape_melon_song(curr_song, request_html(url));
 		    break;
 		}
 	    case BUGS:
 		{
-		    std::string url = generate_song_url(song_id, site);
+		    url.insert(http_pos+1, "s");
 		    scrape_bugs_song(curr_song, request_html(url));
 		    break;
 		}
 	    case GENIE:
 		{
-		    std::string url = generate_song_url(song_id, site);
 		    scrape_genie_song(curr_song, request_html(url));
 		    break;
 		}
@@ -216,16 +263,19 @@ void GaonParser::extract_all_ids(GaonSong *curr_song, myhtml_collection_t *li_no
     }
 }
 
-void GaonParser::load_info(GaonInfo *info)
+void GaonParser::load_info(std::shared_ptr<SiteInfo> site_info, size_t max_dist_size)
 {
-    generate_url(info);
+    if (std::shared_ptr<GaonInfo> info = std::dynamic_pointer_cast<GaonInfo>(site_info)) {
+	info->key_hash = (info->week * info->year) % max_dist_size;
+	generate_url(info);
+    } else {
+	// TODO: THROW EXCEPTION
+    }
 }
 
-void GaonParser::extract_dates(SiteInfo *info, const char* html_buffer)
+void GaonParser::extract_dates(std::shared_ptr<SiteInfo> info, const char* html_buffer)
 {
     // Sets up html parser and gets tree 
-    myhtml_t* myhtml = myhtml_create();
-    myhtml_init(myhtml, MyHTML_OPTIONS_DEFAULT, 1, 0);
     myhtml_tree_t* tree = myhtml_tree_create();
     myhtml_tree_init(tree, myhtml);
     
@@ -253,12 +303,11 @@ void GaonParser::extract_dates(SiteInfo *info, const char* html_buffer)
     info->end_date = end;
 
     myhtml_tree_destroy(tree);
-    myhtml_destroy(myhtml);
 }
 
-GaonSong* GaonParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) 
+std::shared_ptr<Song> GaonParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) 
 {
-    GaonSong *song_info;
+    std::shared_ptr<GaonSong> song_info(new GaonSong, [](GaonSong *song) {delete song;});
     myhtml_collection_t* td_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, tr_node, MyHTML_TAG_TD, NULL);
     for (int i = 0; i < td_nodes->length; ++i) {
 	switch(i) {
@@ -266,13 +315,18 @@ GaonSong* GaonParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *t
 		{    
 		    //Get title and id info
 		    myhtml_tree_node_t *span_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_nodes->list[i], MyHTML_TAG_SPAN, NULL)->list[0];
-		    myhtml_tree_node_t *inner_text = myhtml_node_child(span_node);
+		    myhtml_tree_node_t *inner_text; 
+		    if (span_node == NULL) {
+			inner_text = myhtml_node_child(td_nodes->list[i]);
+		    } else {
+			inner_text = myhtml_node_child(span_node);
+		    }
 		    song_info->rank = std::stoi(myhtml_node_text(inner_text, NULL));
 		    break;
 		}
 	    case 3: 
 		{
-		    myhtml_collection_t *p_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_nodes->list[i], MyHTML_TAG_SPAN, NULL);
+		    myhtml_collection_t *p_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_nodes->list[i], MyHTML_TAG_P, NULL);
 		    std::map<std::string, std::string> title_attrs = get_node_attrs(p_nodes->list[0]);
 		    std::map<std::string, std::string> artist_attrs = get_node_attrs(p_nodes->list[1]);	
 		    std::string art_alb = artist_attrs["title"];
@@ -283,14 +337,7 @@ GaonSong* GaonParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *t
 		    song_info->title = title_attrs["title"];
 		    break;
 		}
-	    case 5:
-		{
-		    myhtml_collection_t *p_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_nodes->list[i], MyHTML_TAG_P, NULL);
-		    myhtml_tree_node_t *text_node = myhtml_node_child(p_nodes->list[0]);
-		    song_info->gaon_index = std::stol(myhtml_node_text(text_node, NULL));
-		    break;
-		}
-	    case 7:
+	    case 6:
 		{
 		    myhtml_collection_t *li_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_nodes->list[i], MyHTML_TAG_LI, NULL);
 		    extract_all_ids(song_info, li_nodes);
@@ -312,9 +359,9 @@ std::map<int, Song*> GaonParser::parse(const char* html_buffer)
     myhtml_tree_node_t *node = myhtml_tree_get_document(tree);
     
     std::function<Song*(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> scrape_function = [=](myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) {
-	return this->scrape_tr_nodes(tree, tr_node);
+	return this->scrape_tr_nodes(tree, tr_node).get();
     };
-    std::map<int, Song*> week_data = extract_data(tree, myhtml_node_child(node), scrape_function);
+    std::map<int, Song*> week_data = extract_data(tree, myhtml_node_child(node), 1, scrape_function);
     
     myhtml_tree_destroy(tree); 
     return week_data;
