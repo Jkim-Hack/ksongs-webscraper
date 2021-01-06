@@ -1,6 +1,5 @@
 #include "parser.hpp"
 
-
 Parser::Parser() 
 {
     curl = curl_easy_init();
@@ -28,6 +27,7 @@ bool check_char_equality(char ch1, char ch2)
 
 bool Parser::find_case_insensitive(std::string str1, std::string str2)
 {
+    std::cout << __func__ << std::endl;
     std::string str1_inner_parenth, str2_inner_parenth;
 
     str1.erase(std::remove(str1.begin(), str1.end(), ' '), str1.end());
@@ -132,9 +132,9 @@ std::string Parser::request_html(std::string url)
     return response_string.c_str();
 }
 
-std::map<int, Song*> Parser::extract_data(myhtml_tree_t *tree, myhtml_tree_node_t *node, int starting, std::function<Song*(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> &scrape_function)
+std::map<int, std::shared_ptr<Song>> Parser::extract_data(myhtml_tree_t *tree, myhtml_tree_node_t *node, int starting, std::function<std::shared_ptr<Song>(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> &scrape_function)
 {
-    std::map<int, Song*> week_data;
+    std::map<int, std::shared_ptr<Song>> week_data;
     std::cout << __func__ << std::endl;
     myhtml_collection_t* tbody_nodes = myhtml_get_nodes_by_tag_id(tree, NULL, MyHTML_TAG_TBODY, NULL);
     if (tbody_nodes->length > 0) {
@@ -142,8 +142,8 @@ std::map<int, Song*> Parser::extract_data(myhtml_tree_t *tree, myhtml_tree_node_
 	std::cout << tr_nodes->length << std::endl;
 	for (int i = starting; i < tr_nodes->length; ++i) {
 	    std::cout << i << std::endl;
-	    Song *song_info = scrape_function(tree, tr_nodes->list[i]);
-	    week_data.insert(std::pair<int, Song*>(song_info->rank, song_info));
+	    std::shared_ptr<Song> song_info = scrape_function(tree, tr_nodes->list[i]);
+	    week_data.insert(std::pair<int, std::shared_ptr<Song>>(song_info->rank, song_info));
 	}
 	std::cout << "Extract data done\n";
     } else {

@@ -15,7 +15,7 @@ class SiteThreadManager {
 	size_t max_thread_dist_size;
 	size_t num_running_threads;
 	size_t num_waiting_threads;
-	std::map<std::string, std::map<int, Song*>> extracted_data;
+	std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>> extracted_data;
 	std::map<long, std::vector<std::shared_ptr<SiteInfo>>> all_sites;
 	std::queue<std::vector<std::shared_ptr<SiteInfo>>> execution_queue;
 	std::vector<std::thread> active_threads;
@@ -25,7 +25,7 @@ class SiteThreadManager {
 	void load_all_sites_to_execution_queue();
 	void execute_next_thread();
 	void execute_all();
-	std::map<std::string, std::map<int, Song*>>* get_extracted_data();
+	std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>* get_extracted_data();
 };
 
 #endif

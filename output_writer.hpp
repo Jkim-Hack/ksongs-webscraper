@@ -1,7 +1,5 @@
-#pragma once
-
-#ifndef __OUTPUT_WRITER_H__
-#define __OUTPUT_WRITER_H__
+#ifndef __OUTPUT_WRITER_HPP__
+#define __OUTPUT_WRITER_HPP__
 
 #include "thread_manager.hpp"
 #include <string>
@@ -17,7 +15,7 @@ class OutputWriter {
 	OutputWriter(SITE site_to_use, std::string filepath): site_to_use(site_to_use), filepath(filepath){};
 	void set_output(std::string filepath);
 	void set_site_to_use(SITE site_to_use);
-	void execute_output(std::map<std::string, std::map<int, Song*>> data);
+	void execute_output(std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>* data);
 };
 
 #endif

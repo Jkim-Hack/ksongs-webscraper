@@ -53,7 +53,7 @@ struct SiteInfo {
 struct Song {
     int rank;
     std::string title;
-    std::string artist;
+    std::vector<std::string> artists;
     std::string album;
     virtual ~Song() = default;
 };
@@ -72,11 +72,11 @@ class Parser {
     public:
 	Parser();
 	~Parser();
-	std::map<SiteInfo, std::map<int, Song*>> extracted_data;
+	std::map<SiteInfo, std::map<int, std::shared_ptr<Song>>> extracted_data;
 	virtual void load_info(std::shared_ptr<SiteInfo> site_info, size_t max_dist_size) = 0;
 	std::string request_html(std::string url); 
-	std::map<int, Song*> extract_data(myhtml_tree_t* tree, myhtml_tree_node_t *node, int starting, std::function<Song*(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> &scrape_function);
-	virtual std::map<int, Song*> parse(const char* html_buffer) = 0;
+	std::map<int, std::shared_ptr<Song>> extract_data(myhtml_tree_t* tree, myhtml_tree_node_t *node, int starting, std::function<std::shared_ptr<Song>(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> &scrape_function);
+	virtual std::map<int, std::shared_ptr<Song>> parse(const char* html_buffer) = 0;
 };
 
 // MELON
@@ -105,11 +105,11 @@ class MelonParser : public Parser
     private:
 	void generate_url(std::shared_ptr<SiteInfo> info) override;
 	std::shared_ptr<Song> scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) override;
-	void get_like_count(std::map<int, Song*>* week_data);
+	void get_like_count(std::map<int, std::shared_ptr<Song>>* week_data);
 	std::string generate_like_count_url(std::vector<long> song_ids);
     public:
 	void load_info(std::shared_ptr<SiteInfo> info, size_t max_dist_size) override;
-	std::map<int, Song*> parse(const char* html_buffer) override;
+	std::map<int, std::shared_ptr<Song>> parse(const char* html_buffer) override;
 	static void scrape_album(ID *ids, myhtml_tree_t* tree, myhtml_tree_node_t* node, std::string target_title);
 };
 
@@ -148,7 +148,40 @@ class GaonParser : public Parser
 	void load_info(std::shared_ptr<SiteInfo> info, size_t max_dist_size) override;
 	void extract_dates(std::shared_ptr<SiteInfo> info, const char* html_buffer);
 	std::shared_ptr<Song> scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) override;
-	std::map<int, Song*> parse(const char* html_buffer) override;
+	std::map<int, std::shared_ptr<Song>> parse(const char* html_buffer) override;
 };
 
+struct BugsSong : Song {
+    long song_id;
+    long album_id;
+    std::vector<long> artist_ids;
+};
+
+class BugsParser : public Parser 
+{
+    private:
+	void generate_url(std::shared_ptr<SiteInfo> info) override;
+    public:
+	void load_info(std::shared_ptr<SiteInfo> info, size_t max_dist_size) override;
+	std::shared_ptr<Song> scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) override;
+	std::map<int, std::shared_ptr<Song>> parse(const char* html_buffer) override;
+	static void scrape_album(ID *ids, myhtml_tree_t* tree, myhtml_tree_node_t* node, std::string target_title);
+};
+
+struct GenieSong : Song {
+    long song_id;
+    long album_id;
+    long artist_id;
+};
+
+class GenieParser : public Parser 
+{
+    private:
+	void generate_url(std::shared_ptr<SiteInfo> info) override;
+    public:
+	void load_info(std::shared_ptr<SiteInfo> info, size_t max_dist_size) override;
+	std::shared_ptr<Song> scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) override;
+	std::map<int, std::shared_ptr<Song>> parse(const char* html_buffer) override;
+	static void scrape_album(ID *ids, myhtml_tree_t* tree, myhtml_tree_node_t* node, std::string target_title);
+};
 #endif

@@ -152,20 +152,39 @@ int main(int argc, char *argv[])
 	info->type = DIGITAL;
 	thread_manager.load_site_info(info);
     }
-
-    thread_manager.load_all_sites_to_execution_queue();
-    thread_manager.execute_all();
-    std::map<std::string, std::map<int, Song*>>* data = thread_manager.get_extracted_data();
-    
-    for (auto const& [start_date, song_info] : *data) {
-	std::cout << "For date: " << start_date << std::endl;
-	for (auto const& [rank, song] : song_info) {
-	    GaonSong *gaon_song = dynamic_cast<GaonSong*>(song);
-	    std::cout << rank << " : " << gaon_song->title << " - " << gaon_song->gaon_index << std::endl;  
+    for (size_t i = 2011; i < 2021; ++i) {
+	for (size_t j = 1; j < 53; ++j) {
+	    std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
+	    info->site_type = GAON_DIGITAL;
+	    info->week = j;
+	    info->year = i;
+	    info->type = DIGITAL;
+	    thread_manager.load_site_info(info);
 	}
     }
 
-    OutputWriter writer(MELON);
-    
+    thread_manager.load_all_sites_to_execution_queue();
+    thread_manager.execute_all();
+    std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>* data = thread_manager.get_extracted_data();
+    std::cout << data->size() << std::endl;
+    for (auto const& [site_info, song_info] : *data) {
+	std::cout << "For date: " << site_info->start_date << std::endl;
+	for (auto const& [rank, song] : song_info) {
+	    std::shared_ptr<GaonSong> gaon_song = std::dynamic_pointer_cast<GaonSong>(song);
+	    std::cout << rank << " : " << gaon_song->title << std::endl;  
+	}
+    }
+
+    OutputWriter writer(GAON_DIGITAL);
+    writer.execute_output(data);
+
+    for (auto const& [site_info, song_info] : *data) {
+	for (auto const& [rank, song] : song_info) { 
+	    std::shared_ptr<GaonSong> gaon_song = std::dynamic_pointer_cast<GaonSong>(song);
+	    gaon_song.reset();
+	}
+	std::shared_ptr<SiteInfo> info = std::dynamic_pointer_cast<SiteInfo>(site_info);
+	info.reset();
+    }
     return EXIT_SUCCESS;
 }

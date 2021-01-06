@@ -80,13 +80,16 @@ std::shared_ptr<Song> MelonParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_t
 			    } else {
 				artist_id = extract_id(get_node_attrs(artist_nodes->list[0])["href"]);
 			    }
-			    myhtml_tree_node_t* artist_node = myhtml_node_child(artist_nodes->list[0]);
+			    
+			    for (size_t i = 0; i < artist_nodes->length/2; ++i) {
+				myhtml_tree_node_t* artist_node = myhtml_node_child(artist_nodes->list[i]);
+				song_info->artists.push_back(myhtml_node_text(artist_node, NULL));
+			    }
 
 			    myhtml_tree_node_t* album_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[1], MyHTML_TAG_A, NULL)->list[0];
 			    std::string album_id = extract_id(get_node_attrs(album_node)["href"]);
 			    album_node = myhtml_node_child(album_node);
 
-			    song_info->artist = myhtml_node_text(artist_node, NULL);
 			    song_info->album = myhtml_node_text(album_node, NULL);	
 			    song_info->artist_id = std::stol(artist_id);
 			    song_info->album_id = std::stol(album_id);
@@ -120,7 +123,7 @@ std::vector<long> extract_song_ids(std::map<int, MelonSong*> week_data)
     return song_ids;
 }
 
-void MelonParser::get_like_count(std::map<int, Song*>* week_data)
+void MelonParser::get_like_count(std::map<int, std::shared_ptr<Song>>* week_data)
 {
     std::cout << "get_like_count\n";
     std::string response_string;
@@ -145,7 +148,7 @@ void MelonParser::get_like_count(std::map<int, Song*>* week_data)
     }
 }
 
-std::map<int, Song*> MelonParser::parse(const char* html_buffer)
+std::map<int, std::shared_ptr<Song>> MelonParser::parse(const char* html_buffer)
 {
     // Sets up html parser and gets tree 
     myhtml_tree_t* tree = myhtml_tree_create();
@@ -156,11 +159,11 @@ std::map<int, Song*> MelonParser::parse(const char* html_buffer)
     myhtml_tree_node_t *node = myhtml_tree_get_document(tree);
 
     // function with the lambda calling our scrape function
-    std::function<Song*(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> scrape_function = [=](myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) {
-	return this->scrape_tr_nodes(tree, tr_node).get();
+    std::function<std::shared_ptr<Song>(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> scrape_function = [=](myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) {
+	return this->scrape_tr_nodes(tree, tr_node);
     };
 
-    std::map<int, Song*> week_data = extract_data(tree, myhtml_node_child(node), 0, scrape_function);
+    std::map<int, std::shared_ptr<Song>> week_data = extract_data(tree, myhtml_node_child(node), 0, scrape_function);
     get_like_count(&week_data);
     
     myhtml_tree_destroy(tree);
@@ -172,8 +175,6 @@ std::map<int, Song*> MelonParser::parse(const char* html_buffer)
 void MelonParser::scrape_album(ID *id, myhtml_tree_t* tree, myhtml_tree_node_t* node, std::string target_title) 
 { 
     bool found_song_id = false;
-    id->song_id = 0;
-    id->album_id = 0;
 
     myhtml_collection_t *tbody_nodes = myhtml_get_nodes_by_tag_id(tree, NULL, MyHTML_TAG_TBODY, NULL);
     if (tbody_nodes->length < 1) {
@@ -209,12 +210,17 @@ void MelonParser::scrape_album(ID *id, myhtml_tree_t* tree, myhtml_tree_node_t* 
 			    std::string href_string = node_attrs["value"];
 			    id->song_id = std::stol(href_string);
 			    found_song_id = true;
+			} else if (title_node) {
+			    node_attrs = get_node_attrs(title_node);
+			    std::string href_string = node_attrs["href"];
+			    id->song_id = extract_ids_from_js(href_string)[1];
+			    found_song_id = true;
 			}
 		    }
 		} else if (j == 1 && found_song_id) {
 		    // Getting artist id
 		    myhtml_collection_t *a_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, song_info_nodes->list[j], MyHTML_TAG_A, NULL);
-		    for (size_t k = 0; k < a_nodes->length; ++k) {
+		    for (size_t k = 0; k < a_nodes->length/2; ++k) { // Latter half are repeated nodes
 			std::map<std::string, std::string> node_attrs = get_node_attrs(a_nodes->list[k]);
 			std::string href_string = node_attrs["href"];
 			id->artist_ids.push_back(extract_ids_from_js(href_string)[0]);

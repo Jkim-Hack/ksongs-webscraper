@@ -4,7 +4,7 @@
 SiteThreadManager::SiteThreadManager() 
 {
     max_num_items_per_thread = 100;
-    max_thread_dist_size = 53;
+    max_thread_dist_size = 59;
 }
 
 void SiteThreadManager::load_site_info(std::shared_ptr<SiteInfo> info) {
@@ -64,11 +64,10 @@ void SiteThreadManager::execute_next_thread()
 		    std::string html = gaon_parser.request_html(site_info->url);
 		    gaon_parser.extract_dates(site_info, html.c_str());
 		    std::cout << "Doing: " << site_info->start_date << std::endl;
-		    std::map<int, Song*> data = gaon_parser.parse(html.c_str());
+		    std::map<int, std::shared_ptr<Song>> data = gaon_parser.parse(html.c_str());
 		    std::cout << "Done: " << site_info->start_date << std::endl;
-		    extracted_data.insert(std::pair<std::string, std::map<int, Song*>>(site_info->start_date, data));
+		    extracted_data.insert(std::pair<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>(site_info, data));
 		    std::cout << "Extracted data size: " << extracted_data.size() << std::endl;
-		    site_info.reset();
 		}
 	}, current_thread));
 }
@@ -80,7 +79,7 @@ void SiteThreadManager::execute_all()
     }
 }
 
-std::map<std::string, std::map<int, Song*>>* SiteThreadManager::get_extracted_data()
+std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>* SiteThreadManager::get_extracted_data()
 {
     for (auto&& curr_thread : active_threads) {
 	curr_thread.join();
