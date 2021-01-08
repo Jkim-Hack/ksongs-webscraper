@@ -11,6 +11,8 @@ class SiteThreadManager {
     private:	
 	MelonParser melon_parser;
 	GaonParser gaon_parser;
+	BugsParser bugs_parser;
+	GenieParser genie_parser;
 	size_t max_num_items_per_thread;
 	size_t max_thread_dist_size;
 	size_t num_running_threads;

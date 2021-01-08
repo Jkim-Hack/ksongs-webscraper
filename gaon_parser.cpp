@@ -88,7 +88,7 @@ void GaonParser::scrape_bugs_song(std::shared_ptr<GaonSong> curr_song, std::stri
     std::cout << bugs_ids.song_id << " : " << bugs_ids.album_id << " : " << bugs_ids.artist_ids.size() << std::endl; 
 
     // Finally add to the song's final output map
-    curr_song->site_ids.insert(std::pair<SITE, ID>(MELON, bugs_ids));
+    curr_song->site_ids.insert(std::pair<SITE, ID>(BUGS, bugs_ids));
     
     myhtml_tree_destroy(tree); 
 }
@@ -117,14 +117,14 @@ void GaonParser::scrape_genie_song(std::shared_ptr<GaonSong> curr_song, std::str
     myhtml_tree_destroy(tree); 
 }
 
-std::map<SITE, long> GaonParser::get_all_song_ids(myhtml_collection_t *li_nodes)
+std::map<SITE, long> GaonParser::get_all_song_ids(myhtml_tree_t* tree, myhtml_collection_t *li_nodes)
 {
     std::cout << __func__ << std::endl;
     std::map<SITE, long> all_song_ids;
 
     // Enumerate over the SITE enums to Genie
     for (int i = MELON; i <= GENIE; ++i) {
-	myhtml_tree_node_t *a_node = myhtml_node_child(li_nodes->list[i]);
+	myhtml_tree_node_t *a_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, li_nodes->list[i], MyHTML_TAG_A, NULL)->list[0];
 	std::map<std::string, std::string> node_attrs = get_node_attrs(a_node);
 	std::string href_string = node_attrs["href"];
 	SITE site = (SITE)i;
@@ -134,10 +134,10 @@ std::map<SITE, long> GaonParser::get_all_song_ids(myhtml_collection_t *li_nodes)
     return all_song_ids;
 }
 
-void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_collection_t *li_nodes)
+void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tree_t* tree, myhtml_collection_t *li_nodes)
 {
     std::cout << __func__ << std::endl;
-    std::map<SITE, long> song_ids = get_all_song_ids(li_nodes);
+    std::map<SITE, long> song_ids = get_all_song_ids(tree, li_nodes);
     for (auto const& [site, song_id] : song_ids) {
 	std::string url = generate_song_url(song_id, site);
 	std::string html = request_html(url);
@@ -297,16 +297,16 @@ std::shared_ptr<Song> GaonParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tr
 	    case 6:
 		{
 		    myhtml_collection_t *li_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_nodes->list[i], MyHTML_TAG_LI, NULL);
-		    if (li_nodes->length > 0) {
-			extract_all_ids(song_info, li_nodes);
+		    if (li_nodes->length > 2) {
+			extract_all_ids(song_info, tree, li_nodes);
 		    }
 		    break;
 		}
 	    case 7:
 		{
 		    myhtml_collection_t *li_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_nodes->list[i], MyHTML_TAG_LI, NULL);
-		    if (li_nodes->length > 0) {
-			extract_all_ids(song_info, li_nodes);
+		    if (li_nodes->length > 2) {
+			extract_all_ids(song_info, tree, li_nodes);
 		    }
 		    break;
 		}

@@ -64,6 +64,7 @@ class Parser {
 	myhtml_t* myhtml;
 	virtual void generate_url(std::shared_ptr<SiteInfo> info) = 0;
 	std::string extract_id(std::string text);
+	static std::string remove_junk_spaces(std::string text);
 	static bool find_case_insensitive(std::string str1, std::string str2);
 	static std::vector<long> extract_ids_from_js(std::string attr_string);
 	static std::map<std::string, std::string> get_node_attrs(myhtml_tree_node_t *node);
@@ -71,7 +72,7 @@ class Parser {
 	virtual std::shared_ptr<Song> scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) = 0;
     public:
 	Parser();
-	~Parser();
+	virtual ~Parser();
 	std::map<SiteInfo, std::map<int, std::shared_ptr<Song>>> extracted_data;
 	virtual void load_info(std::shared_ptr<SiteInfo> site_info, size_t max_dist_size) = 0;
 	std::string request_html(std::string url); 
@@ -94,9 +95,9 @@ struct ID {
 
 struct MelonSong : Song {
     long song_id;
-    long artist_id;
     long album_id;
     long number_of_likes;
+    std::vector<long> artist_ids;
     virtual ~MelonSong() = default;
 };
 
@@ -139,8 +140,8 @@ class GaonParser : public Parser
     private:
 	void generate_url(std::shared_ptr<SiteInfo> info) override;
 	std::string generate_song_url(long song_id, enum SITE site);
-	std::map<SITE, long> get_all_song_ids(myhtml_collection_t *li_nodes);
-	void extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_collection_t *li_nodes);
+	std::map<SITE, long> get_all_song_ids(myhtml_tree_t* tree, myhtml_collection_t *li_nodes);
+	void extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tree_t* tree, myhtml_collection_t *li_nodes);
     public:
 	void scrape_melon_song(std::shared_ptr<GaonSong> curr_song, std::string html);
 	void scrape_bugs_song(std::shared_ptr<GaonSong> curr_song, std::string html);
@@ -166,6 +167,12 @@ class BugsParser : public Parser
 	std::shared_ptr<Song> scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) override;
 	std::map<int, std::shared_ptr<Song>> parse(const char* html_buffer) override;
 	static void scrape_album(ID *ids, myhtml_tree_t* tree, myhtml_tree_node_t* node, std::string target_title);
+};
+
+struct GenieInfo : SiteInfo {
+    std::string url_2;
+    std::string url_3;
+    std::string url_4;
 };
 
 struct GenieSong : Song {

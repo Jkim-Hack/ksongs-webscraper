@@ -26,12 +26,11 @@ void MelonParser::generate_url(std::shared_ptr<SiteInfo> site_info)
 	std::string start_year = info->start_date.substr(0, 4);
 	std::string end_year = info->end_date.substr(0, 4);
 	int end_year_int = std::stoi(end_year);
-	std::string url;
 	std::string month = info->start_date.substr(4, 2);
 	if (end_year_int == 2020) {
-	    url = "https://www.melon.com/chart/week/index.htm?chartType=WE&age=2020&year=2020&mon=" + month + "&day=" + info->start_date + "%5E" + info->end_date + "&classCd=GN0000&startDay=" + info->start_date + "&endDay=" + info->end_date + "&moved=Y";
+	    info->url = "https://www.melon.com/chart/week/index.htm?chartType=WE&age=2020&year=2020&mon=" + month + "&day=" + info->start_date + "%5E" + info->end_date + "&classCd=GN0000&startDay=" + info->start_date + "&endDay=" + info->end_date + "&moved=Y";
 	} else if (end_year_int < 2020 && end_year_int >= 2010) {
-	    url = "https://www.melon.com/chart/search/list.htm?chartType=WE&age=2010&year=" + start_year + "&mon=" + month + "&day=" + info->start_date +"%5E"+ info->end_date + "&classCd="+ info->gn_dp_id +"0000&startDay="+info->start_date+"&endDay="+info->end_date+"&moved=Y";
+	    info->url = "https://www.melon.com/chart/search/list.htm?chartType=WE&age=2010&year=" + start_year + "&mon=" + month + "&day=" + info->start_date +"%5E"+ info->end_date + "&classCd="+ info->gn_dp_id +"0000&startDay="+info->start_date+"&endDay="+info->end_date+"&moved=Y";
 	} else {
 	    // TODO: Throw exception
 	} 
@@ -42,62 +41,64 @@ std::shared_ptr<Song> MelonParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_t
 {
     std::shared_ptr<MelonSong> song_info(new MelonSong, [](MelonSong *song){delete song;});
     myhtml_collection_t* td_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, tr_node, MyHTML_TAG_TD, NULL);
-    for (int i = 0; i < td_nodes->length; ++i) {
-	switch(i) {
-	    case 0: {
-			//Get title and id info
-			myhtml_tree_node_t *input_node = myhtml_node_child(td_nodes->list[i]);
-			input_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, input_node, MyHTML_TAG_INPUT, NULL)->list[0]; 
-			if (input_node) {
-			    std::map<std::string, std::string> attributes = get_node_attrs(input_node);
-			    song_info->title = attributes.at("title");
-			    song_info->song_id = std::stol(attributes.at("value"));
-			}
-			break;
-		    }
-	    case 1: {
-			myhtml_tree_node_t *span_node = myhtml_node_child(td_nodes->list[i]);
-			span_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, span_node, MyHTML_TAG_SPAN, NULL)->list[0];
-			span_node = myhtml_node_child(span_node);
-			if (span_node) {
-			    song_info->rank = std::stoi(myhtml_node_text(span_node, NULL));
-			}
-			break;
-		    }
-	    case 3: {
-			myhtml_tree_node_t *div_node = myhtml_get_nodes_by_attribute_value(tree, NULL, td_nodes->list[i], true, "class", 5, "wrap_song_info", 14, NULL)->list[0];
-			if (div_node) {
-			    myhtml_collection_t* sub_div_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, div_node, MyHTML_TAG_DIV, NULL);
-			    
-			    myhtml_tree_node_t* second_div_node = sub_div_nodes->list[1];
-			    myhtml_collection_t* second_div_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_node, MyHTML_TAG_DIV, NULL);
-
-			    myhtml_collection_t* artist_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[0], MyHTML_TAG_A, NULL);
-			    std::string artist_id; 
-			    if (artist_nodes->length < 1) {
-				artist_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[0], MyHTML_TAG_SPAN, NULL);
-				artist_id = "-";
-			    } else {
-				artist_id = extract_id(get_node_attrs(artist_nodes->list[0])["href"]);
-			    }
-			    
-			    for (size_t i = 0; i < artist_nodes->length/2; ++i) {
-				myhtml_tree_node_t* artist_node = myhtml_node_child(artist_nodes->list[i]);
-				song_info->artists.push_back(myhtml_node_text(artist_node, NULL));
-			    }
-
-			    myhtml_tree_node_t* album_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, second_div_nodes->list[1], MyHTML_TAG_A, NULL)->list[0];
-			    std::string album_id = extract_id(get_node_attrs(album_node)["href"]);
-			    album_node = myhtml_node_child(album_node);
-
-			    song_info->album = myhtml_node_text(album_node, NULL);	
-			    song_info->artist_id = std::stol(artist_id);
-			    song_info->album_id = std::stol(album_id);
-			}
-			break;
-		    }
-	}
+    
+    myhtml_tree_node_t *span_node = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_node, false, "class", 5, "rank", 4, NULL)->list[0];
+    span_node = myhtml_node_child(span_node);
+    if (span_node) {
+	song_info->rank = std::stoi(myhtml_node_text(span_node, NULL));
+    } else {
+	// TODO: Throw exception
+	std::cout << "Failed\n";
     }
+   
+    myhtml_tree_node_t *song_node = myhtml_get_nodes_by_attribute_value(tree, NULL, tr_node, false, "class", 5, "ellipsis rank01", 15, NULL)->list[0];
+    myhtml_tree_node_t *artist_node = myhtml_get_nodes_by_attribute_value(tree, NULL, tr_node, false, "class", 5, "ellipsis rank02", 15, NULL)->list[0];
+    myhtml_tree_node_t *album_node = myhtml_get_nodes_by_attribute_value(tree, NULL, tr_node, false, "class", 5, "ellipsis rank03", 15, NULL)->list[0];
+
+    if (song_node) {
+	myhtml_collection_t* a_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, song_node, MyHTML_TAG_A, NULL);
+	if (a_nodes->length > 0) {
+	    myhtml_tree_node_t* song_node = a_nodes->list[0];
+	    if (song_node) {
+		song_info->song_id = extract_ids_from_js(get_node_attrs(song_node)["href"])[1];
+		song_info->title = myhtml_node_text(myhtml_node_child(song_node), NULL);
+	    } 
+	} else {
+	    myhtml_tree_node_t *input_node = myhtml_node_child(td_nodes->list[0]);
+	    input_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, input_node, MyHTML_TAG_INPUT, NULL)->list[0]; 
+	    if (input_node) {
+		std::map<std::string, std::string> attributes = get_node_attrs(input_node);
+		song_info->title = attributes.at("title");
+		song_info->song_id = std::stol(attributes.at("value"));
+	    }
+	}
+    } else {
+	std::cout << "Cannot find song title/id\n";
+    }
+
+    if (artist_node) {
+	myhtml_collection_t* a_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, artist_node, MyHTML_TAG_A, NULL);
+	for (size_t k = 0; k < a_nodes->length / 2; ++k) {
+	    myhtml_tree_node_t* artist_node = myhtml_node_child(a_nodes->list[k]);
+	    song_info->artist_ids.push_back(extract_ids_from_js(get_node_attrs(a_nodes->list[k])["href"])[0]);
+	    song_info->artists.push_back(myhtml_node_text(artist_node, NULL));
+	}
+    } else {
+	std::cout << "Cannot find song artists\n";
+    }
+
+    if (album_node) {
+	myhtml_collection_t* a_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, album_node, MyHTML_TAG_A, NULL);
+	if (a_nodes->length > 0) {
+	    myhtml_tree_node_t* album_node = a_nodes->list[0];
+	    song_info->album_id = extract_ids_from_js(get_node_attrs(album_node)["href"])[0];
+	    album_node = myhtml_node_child(album_node);
+	    song_info->album = myhtml_node_text(album_node, NULL);	
+	}
+    } else {
+	std::cout << "Cannot find song album\n";
+    }
+
     return song_info;
 }
 
@@ -112,24 +113,25 @@ std::string MelonParser::generate_like_count_url(std::vector<long> song_ids)
     return url;
 }
 
-std::vector<long> extract_song_ids(std::map<int, MelonSong*> week_data) 
+std::vector<long> extract_song_ids(std::map<int, std::shared_ptr<Song>> week_data) 
 {
     std::cout << "extract_song_ids\n";
     std::vector<long> song_ids;
-    for (int i = 1; i < 101; ++i) {
-	long id = week_data[i]->song_id;
+    for (auto const& [rank, song] : week_data) {
+	std::shared_ptr<MelonSong> melon_song = std::dynamic_pointer_cast<MelonSong>(song);
+	long id = melon_song->song_id;
+	std::cout << id << std::endl;
 	song_ids.push_back(id);
     }
     return song_ids;
 }
 
-void MelonParser::get_like_count(std::map<int, std::shared_ptr<Song>>* week_data)
+void MelonParser::get_like_count(std::map<int, std::shared_ptr<Song>> *week_data)
 {
     std::cout << "get_like_count\n";
     std::string response_string;
-    std::map<int, MelonSong*>* melon_week_data = (std::map<int, MelonSong*>*)week_data;
     if (curl) {
-	std::vector<long> extracted_song_ids = extract_song_ids(*melon_week_data);
+	std::vector<long> extracted_song_ids = extract_song_ids(*week_data);
 	std::string url = generate_like_count_url(extracted_song_ids);
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
@@ -140,9 +142,14 @@ void MelonParser::get_like_count(std::map<int, std::shared_ptr<Song>>* week_data
 	nlohmann::json j = nlohmann::json::parse(response_string);
 	for (auto& item : j.items().begin().value().items()) {
 	    if (!item.key().empty()) {
-		// TODO Cast here 
-		long like_count = item.value()["SUMMCNT"];
-		(*melon_week_data)[std::stoi(item.key()) + 1]->number_of_likes = like_count;
+		if (week_data->find(std::stoi(item.key()) + 1) != week_data->end()) {
+		    long like_count = item.value()["SUMMCNT"];	
+		    std::shared_ptr<MelonSong> song = std::dynamic_pointer_cast<MelonSong>((*week_data)[std::stoi(item.key()) + 1]);
+		    song->number_of_likes = like_count;
+		} else {
+		    std::cout << "ITEM NOT FOUND: " << std::stoi(item.key()) + 1 << std::endl;
+		    
+		}
 	    }
 	}
     }
@@ -163,7 +170,7 @@ std::map<int, std::shared_ptr<Song>> MelonParser::parse(const char* html_buffer)
 	return this->scrape_tr_nodes(tree, tr_node);
     };
 
-    std::map<int, std::shared_ptr<Song>> week_data = extract_data(tree, myhtml_node_child(node), 0, scrape_function);
+    std::map<int, std::shared_ptr<Song>> week_data = extract_data(tree, node, 0, scrape_function);
     get_like_count(&week_data);
     
     myhtml_tree_destroy(tree);

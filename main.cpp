@@ -103,15 +103,15 @@ int main(int argc, char *argv[])
 
     // MELON
     /*
-    int number_of_weeks = 0;
     std::stringstream start_buffer, end_buffer;
     
     auto ymd_start {std::chrono::day(12)/std::chrono::April/2010};
     auto sd_start = std::chrono::sys_days{ymd_start};
     
     do {
-	MelonInfo info;
-	
+	std::shared_ptr<MelonInfo> melon_info(new MelonInfo, [](MelonInfo *info){delete info;});
+	melon_info->site_type = MELON;
+
 	start_buffer.str(std::string());
 	end_buffer.str(std::string());
 
@@ -126,43 +126,116 @@ int main(int argc, char *argv[])
 	start_buffer << std::put_time(&curr_start_date, "%Y%m%d");
 	end_buffer << std::put_time(&curr_end_date, "%Y%m%d");
 
-	info.start_date = start_buffer.str();
-	info.end_date = end_buffer.str();
+	melon_info->start_date = start_buffer.str();
+	melon_info->end_date = end_buffer.str();
 
-	thread_manager.load_site_info(&info);
+	thread_manager.load_site_info(melon_info);
 
 	if (start_buffer.str().compare("20120805") == 0) 
 	    sd_start += std::chrono::days(8);
 	else
 	    sd_start += std::chrono::days(7);
 
-	number_of_weeks++;
-
     } while (start_buffer.str().compare("20201214") != 0);
-
-    std::cout << "Number of weeks: " << number_of_weeks << std::endl;
     */
 
+    // BUGS
+    /*
+    std::stringstream start_buffer, end_buffer;
+    
+    auto ymd_start {std::chrono::day(10)/std::chrono::April/2010};
+    auto sd_start = std::chrono::sys_days{ymd_start};
+    
+    do {
+	std::shared_ptr<SiteInfo> bugs_info(new SiteInfo, [](SiteInfo *info){delete info;});
+	bugs_info->site_type = BUGS;
 
+	start_buffer.str(std::string());
+	end_buffer.str(std::string());
+
+	auto sd_end = sd_start + std::chrono::days(6);
+
+	// Changing the format to string
+	std::time_t starting_date_c = std::chrono::system_clock::to_time_t(sd_start);
+	std::tm curr_start_date = *std::localtime(&starting_date_c);
+	
+	std::time_t ending_date_c = std::chrono::system_clock::to_time_t(sd_end);
+	std::tm curr_end_date = *std::localtime(&ending_date_c);
+
+	start_buffer << std::put_time(&curr_start_date, "%Y%m%d");
+	end_buffer << std::put_time(&curr_end_date, "%Y%m%d");
+
+	bugs_info->start_date = start_buffer.str();
+	bugs_info->end_date = end_buffer.str();
+
+	thread_manager.load_site_info(bugs_info);
+
+	sd_start += std::chrono::days(7);
+	std::cout << start_buffer.str() << std::endl;
+	
+	if (start_buffer.str().compare("20101112") == 0) {
+	    sd_start -= std::chrono::days(4);
+	    std::cout << start_buffer.str() << std::endl;
+	}
+    } while (start_buffer.str().compare("20201228") != 0);
+    */
+
+    // GENIE
+    /*
+    std::stringstream start_buffer, end_buffer;
+    
+    auto ymd_start {std::chrono::day(20)/std::chrono::March/2012};
+    auto sd_start = std::chrono::sys_days{ymd_start};
+    
+    do {
+	std::shared_ptr<GenieInfo> genie_info(new GenieInfo, [](GenieInfo *info){delete info;});
+	genie_info->site_type = GENIE;
+
+	start_buffer.str(std::string());
+	end_buffer.str(std::string());
+
+	auto sd_end = sd_start + std::chrono::days(6);
+
+	// Changing the format to string
+	std::time_t starting_date_c = std::chrono::system_clock::to_time_t(sd_start);
+	std::tm curr_start_date = *std::localtime(&starting_date_c);
+	
+	std::time_t ending_date_c = std::chrono::system_clock::to_time_t(sd_end);
+	std::tm curr_end_date = *std::localtime(&ending_date_c);
+
+	start_buffer << std::put_time(&curr_start_date, "%Y%m%d");
+	end_buffer << std::put_time(&curr_end_date, "%Y%m%d");
+
+	genie_info->start_date = start_buffer.str();
+	genie_info->end_date = end_buffer.str();
+
+	thread_manager.load_site_info(genie_info);
+
+	sd_start += std::chrono::days(7);
+	std::cout << start_buffer.str() << std::endl;
+	
+    } while (start_buffer.str().compare("20201228") != 0);
+    */
+    // GAON
+    
     for (int i = 17; i < 53; ++i) {
 	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
-	info->site_type = GAON_DIGITAL;
+	info->site_type = GAON_DOWNLOAD;
 	info->week = i;
 	info->year = 2010;
-	info->type = DIGITAL;
+	info->type = DOWNLOAD;
 	thread_manager.load_site_info(info);
     }
     for (size_t i = 2011; i < 2021; ++i) {
 	for (size_t j = 1; j < 53; ++j) {
 	    std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
-	    info->site_type = GAON_DIGITAL;
+	    info->site_type = GAON_DOWNLOAD;
 	    info->week = j;
 	    info->year = i;
-	    info->type = DIGITAL;
+	    info->type = DOWNLOAD;
 	    thread_manager.load_site_info(info);
 	}
     }
-
     thread_manager.load_all_sites_to_execution_queue();
     thread_manager.execute_all();
     std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>* data = thread_manager.get_extracted_data();
@@ -170,18 +243,17 @@ int main(int argc, char *argv[])
     for (auto const& [site_info, song_info] : *data) {
 	std::cout << "For date: " << site_info->start_date << std::endl;
 	for (auto const& [rank, song] : song_info) {
-	    std::shared_ptr<GaonSong> gaon_song = std::dynamic_pointer_cast<GaonSong>(song);
-	    std::cout << rank << " : " << gaon_song->title << std::endl;  
+	    std::cout << rank << " : " << song->title << std::endl;  
 	}
     }
 
-    OutputWriter writer(GAON_DIGITAL);
+    OutputWriter writer(GAON_DOWNLOAD);
     writer.execute_output(data);
 
     for (auto const& [site_info, song_info] : *data) {
 	for (auto const& [rank, song] : song_info) { 
-	    std::shared_ptr<GaonSong> gaon_song = std::dynamic_pointer_cast<GaonSong>(song);
-	    gaon_song.reset();
+	    std::shared_ptr<Song> song_ptr = std::dynamic_pointer_cast<Song>(song);
+	    song_ptr.reset();
 	}
 	std::shared_ptr<SiteInfo> info = std::dynamic_pointer_cast<SiteInfo>(site_info);
 	info.reset();

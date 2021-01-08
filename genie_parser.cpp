@@ -1,8 +1,15 @@
 #include "parser.hpp"
 
-void GenieParser::generate_url(std::shared_ptr<SiteInfo> info)
+void GenieParser::generate_url(std::shared_ptr<SiteInfo> site_info)
 {
-    info->url = "https://www.genie.co.kr/chart/top200?ditc=W&rtm=N&ymd=" + info->start_date;
+    if (std::shared_ptr<GenieInfo> info = std::dynamic_pointer_cast<GenieInfo>(site_info)) {
+	info->url = "https://www.genie.co.kr/chart/top200?ditc=W&rtm=N&ymd=" + info->start_date;
+	info->url_2 = info->url + "&hh=02&rtm=N&pg=2";
+	info->url_3 = info->url + "&hh=02&rtm=N&pg=3";
+	info->url_4 = info->url + "&hh=02&rtm=N&pg=4";
+    } else {
+	// TODO: Throw exception
+    }
 }
 
 void GenieParser::load_info(std::shared_ptr<SiteInfo> info, size_t max_dist_size)
@@ -14,32 +21,49 @@ void GenieParser::load_info(std::shared_ptr<SiteInfo> info, size_t max_dist_size
 std::shared_ptr<Song> GenieParser::scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)
 {
     std::shared_ptr<GenieSong> song_info(new GenieSong, [](GenieSong *song) {delete song;});
+    
+    myhtml_tree_node_t* td_node_number = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_node, true, "class", 5, "number", 6, NULL)->list[0];
+
+    std::string rank = myhtml_node_text(myhtml_node_child(td_node_number), NULL);
+    song_info->rank = std::stol(rank);
 
     myhtml_tree_node_t* td_node_info = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_node, true, "class", 5, "info", 4, NULL)->list[0];
     myhtml_collection_t *a_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, td_node_info, MyHTML_TAG_A, NULL);
     
-    myhtml_tree_node_t* title_node_info = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_node, true, "class", 5, "info", 4, NULL)->list[0];
+    myhtml_tree_node_t* title_node_info = a_nodes->list[0];
+    myhtml_tree_node_t* artist_node_info = a_nodes->list[1];
+    myhtml_tree_node_t* album_node_info = a_nodes->list[2]; 
 
-    myhtml_tree_node_t* artist_node_info = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_node, true, "class", 5, "info", 4, NULL)->list[0];
-
-    myhtml_tree_node_t* album_node_info = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_node, true, "class", 5, "info", 4, NULL)->list[0];
-    
     // Getting song id
     std::map<std::string, std::string> attrs = get_node_attrs(title_node_info);
     attrs = get_node_attrs(title_node_info);
     std::string song_id = attrs["onclick"];
-    song_info->song_id = extract_ids_from_js(song_id)[0];
-    song_info->title = myhtml_node_text(myhtml_node_child(title_node_info), NULL);
+    
+    long long_song_id;
+    std::vector<long> ids = extract_ids_from_js(song_id);
+    if (ids.size() < 1) {
+	long_song_id = extract_ids_from_js(get_node_attrs(tr_node)["songid"])[0];  
+    } else {
+	long_song_id = ids[0];
+    }
+
+    song_info->song_id = long_song_id;
+    std::string title = myhtml_node_text(myhtml_node_child(title_node_info), NULL);  
+    song_info->title = remove_junk_spaces(title);
+    std::cout << "TITLE: " << song_info->title << std::endl;
 
     attrs = get_node_attrs(artist_node_info);
     std::string artist_id = attrs["onclick"];
     song_info->artist_id = extract_ids_from_js(artist_id)[0];
-    song_info->artists.push_back(myhtml_node_text(myhtml_node_child(title_node_info), NULL));
+    std::string artists = myhtml_node_text(myhtml_node_child(artist_node_info), NULL);
+    song_info->artists.push_back(remove_junk_spaces(artists));
     
     attrs = get_node_attrs(album_node_info);
     std::string album_id = attrs["onclick"];
     song_info->album_id = extract_ids_from_js(album_id)[0];
-    song_info->album = myhtml_node_text(myhtml_node_child(album_node_info), NULL);
+    std::string album = myhtml_node_text(myhtml_node_child(album_node_info), NULL);
+    song_info->album = remove_junk_spaces(album);
+
     return song_info;
 }
 

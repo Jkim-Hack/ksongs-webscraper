@@ -20,6 +20,20 @@ std::string Parser::extract_id(std::string text)
     return text.substr(first + 1, last-first-1);
 }
 
+std::string Parser::remove_junk_spaces(std::string text)
+{
+    std::smatch match;
+    std::regex word_regex("[^\\s]");
+    std::string result_word = text;
+    
+    size_t first_pos = 0;
+    if (std::regex_search(text, match, word_regex)) {
+	first_pos = match.position();
+    }
+    result_word = result_word.substr(first_pos, result_word.length() - first_pos);
+    return result_word;
+}
+
 bool check_char_equality(char ch1, char ch2)
 {
     return std::toupper(ch1) == std::toupper(ch2);
@@ -115,11 +129,7 @@ std::string Parser::request_html(std::string url)
     struct curl_slist *chunk = NULL;
     std::string response_string;
     if (curl) {
-	/*
-	chunk = curl_slist_append(chunk, "PCID=16080592268936819734880");
-	chunk = curl_slist_append(chunk, "PC_PCID=16080592268936819734880");
-	chunk = curl_slist_append(chunk, "POC=MP10");
-	*/
+	chunk = curl_slist_append(chunk, "Cookie: PCID=16080592268936819734880");
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
