@@ -11,8 +11,11 @@
 #include <myhtml/api.h>
 #include <map>
 #include <array>
+#include <fstream>
 #include <sstream>
 #include <exception>
+
+extern std::ofstream err_output;
 
 class HTMLScrapeFailureException : public std::exception {
 
@@ -63,11 +66,10 @@ class Parser {
 	CURL *curl;
 	myhtml_t* myhtml;
 	virtual void generate_url(std::shared_ptr<SiteInfo> info) = 0;
-	std::string extract_id(std::string text);
-	static std::string remove_junk_spaces(std::string text);
-	static bool find_case_insensitive(std::string str1, std::string str2);
-	static std::vector<long> extract_ids_from_js(std::string attr_string);
-	static std::map<std::string, std::string> get_node_attrs(myhtml_tree_node_t *node);
+	static std::string remove_junk_spaces(std::string text) noexcept;
+	static bool find_case_insensitive(std::string str1, std::string str2) noexcept;
+	static std::vector<long> extract_ids_from_js(std::string attr_string) noexcept;
+	static std::map<std::string, std::string> get_node_attrs(myhtml_tree_node_t *node) noexcept;
     	static size_t write(void *ptr, size_t size, size_t nmemb, std::string *data);
 	virtual std::shared_ptr<Song> scrape_tr_nodes(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node) = 0;
     public:
@@ -141,6 +143,10 @@ class GaonParser : public Parser
 	void generate_url(std::shared_ptr<SiteInfo> info) override;
 	std::string generate_song_url(long song_id, enum SITE site);
 	std::map<SITE, long> get_all_song_ids(myhtml_tree_t* tree, myhtml_collection_t *li_nodes);
+	void extract_rank(std::shared_ptr<GaonSong> song_info, myhtml_tree_t* tree, myhtml_tree_node_t *td_node);
+	void extract_title_artists_album(std::shared_ptr<GaonSong> song_info, myhtml_tree_t* tree, myhtml_tree_node_t *td_node);
+	void extract_gaon_index(std::shared_ptr<GaonSong> song_info, myhtml_tree_t* tree, myhtml_tree_node_t *td_node);
+	void extract_song_ids(std::shared_ptr<GaonSong> song_info, myhtml_tree_t* tree, myhtml_tree_node_t *td_node);
 	void extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tree_t* tree, myhtml_collection_t *li_nodes);
     public:
 	void scrape_melon_song(std::shared_ptr<GaonSong> curr_song, std::string html);

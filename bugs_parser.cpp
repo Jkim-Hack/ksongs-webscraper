@@ -120,9 +120,6 @@ void BugsParser::scrape_album(ID *ids, myhtml_tree_t* tree, myhtml_tree_node_t* 
 {
     std::cout << __func__ << std::endl;
     
-    ids->song_id = 0;
-    ids->album_id = 0;
-    
     std::cout << "Target: " << target_title << std::endl;
 
     // Getting parent table

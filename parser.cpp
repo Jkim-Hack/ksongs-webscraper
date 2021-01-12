@@ -1,7 +1,12 @@
 #include "parser.hpp"
 
+std::ofstream err_output;
+
 Parser::Parser() 
 {
+    if (!err_output.is_open()) {
+	err_output.open("error.txt");
+    }
     curl = curl_easy_init();
     this->myhtml = myhtml_create();
     myhtml_init(this->myhtml, MyHTML_OPTIONS_DEFAULT, 1, 0);
@@ -13,14 +18,7 @@ Parser::~Parser()
     myhtml_destroy(this->myhtml);
 }
 
-std::string Parser::extract_id(std::string text)
-{
-    size_t first = text.find_first_of("'");
-    size_t last = text.find_last_of("'");
-    return text.substr(first + 1, last-first-1);
-}
-
-std::string Parser::remove_junk_spaces(std::string text)
+std::string Parser::remove_junk_spaces(std::string text) noexcept
 {
     std::smatch match;
     std::regex word_regex("[^\\s]");
@@ -31,17 +29,17 @@ std::string Parser::remove_junk_spaces(std::string text)
 	first_pos = match.position();
     }
     result_word = result_word.substr(first_pos, result_word.length() - first_pos);
+    result_word.erase(std::remove(result_word.begin(), result_word.end(), '\n'), result_word.end());
     return result_word;
 }
 
-bool check_char_equality(char ch1, char ch2)
+bool check_char_equality(char ch1, char ch2) noexcept
 {
     return std::toupper(ch1) == std::toupper(ch2);
 }
 
-bool Parser::find_case_insensitive(std::string str1, std::string str2)
+bool Parser::find_case_insensitive(std::string str1, std::string str2) noexcept
 {
-    std::cout << __func__ << std::endl;
     std::string str1_inner_parenth, str2_inner_parenth;
 
     str1.erase(std::remove(str1.begin(), str1.end(), ' '), str1.end());
@@ -65,7 +63,7 @@ bool Parser::find_case_insensitive(std::string str1, std::string str2)
     }
 
     std::smatch match;
-    std::regex word_regex ("[^.,`~;'!?@#$%^&*()′]");
+    std::regex word_regex ("[^.,’`~;'!?@#$%^&*()′]");
     std::string t_str1, t_str2; // "tailored" strings
 
     while (std::regex_search(str1, match, word_regex)) {
@@ -87,7 +85,7 @@ bool Parser::find_case_insensitive(std::string str1, std::string str2)
     return false;
 }
 
-std::vector<long> Parser::extract_ids_from_js(std::string attr_string)
+std::vector<long> Parser::extract_ids_from_js(std::string attr_string) noexcept
 {
     std::vector<long> ids;
     std::smatch match;
@@ -101,7 +99,7 @@ std::vector<long> Parser::extract_ids_from_js(std::string attr_string)
     return ids;
 }
 
-std::map<std::string, std::string> Parser::get_node_attrs(myhtml_tree_node_t *node)
+std::map<std::string, std::string> Parser::get_node_attrs(myhtml_tree_node_t *node) noexcept
 {
     std::map<std::string, std::string> attributes;
     myhtml_tree_attr_t *attr = myhtml_node_attribute_first(node);
@@ -129,7 +127,7 @@ std::string Parser::request_html(std::string url)
     struct curl_slist *chunk = NULL;
     std::string response_string;
     if (curl) {
-	chunk = curl_slist_append(chunk, "Cookie: PCID=16080592268936819734880");
+	chunk = curl_slist_append(chunk, "Cookie: PCID=16080592268936819734880; PC_PCID=16080592268936819734880; POC=MP10");
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
@@ -139,13 +137,12 @@ std::string Parser::request_html(std::string url)
 	std::cout << url.c_str() << std::endl;
 	curl_easy_perform(curl);
     }
-    return response_string.c_str();
+    return response_string;
 }
 
 std::map<int, std::shared_ptr<Song>> Parser::extract_data(myhtml_tree_t *tree, myhtml_tree_node_t *node, int starting, std::function<std::shared_ptr<Song>(myhtml_tree_t* tree, myhtml_tree_node_t *tr_node)> &scrape_function)
 {
     std::map<int, std::shared_ptr<Song>> week_data;
-    std::cout << __func__ << std::endl;
     myhtml_collection_t* tbody_nodes = myhtml_get_nodes_by_tag_id(tree, NULL, MyHTML_TAG_TBODY, NULL);
     if (tbody_nodes->length > 0) {
 	myhtml_collection_t* tr_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, tbody_nodes->list[0], MyHTML_TAG_TR, NULL);

@@ -4,7 +4,7 @@
 SiteThreadManager::SiteThreadManager() 
 {
     max_num_items_per_thread = 100;
-    max_thread_dist_size = 97;
+    max_thread_dist_size = 131;
 }
 
 void SiteThreadManager::load_site_info(std::shared_ptr<SiteInfo> info) {
@@ -112,7 +112,11 @@ void SiteThreadManager::execute_next_thread()
 		    std::string html = parser->request_html(site_info->url);
 		    if (type == GAON_DIGITAL || type == GAON_DOWNLOAD || type == GAON_STREAMING) {
 			GaonParser *gaon_parser = dynamic_cast<GaonParser *>(parser);
-			gaon_parser->extract_dates(site_info, html.c_str());
+			if (html != "") {
+			    gaon_parser->extract_dates(site_info, html.c_str());
+			} else {
+			    std::cout << "html: " << html;
+			}
 		    }
 		    
 		    std::cout << "Doing: " << site_info->start_date << std::endl;

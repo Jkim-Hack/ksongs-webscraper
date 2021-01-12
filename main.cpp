@@ -75,37 +75,20 @@ std::vector<enum SITE> process_sites(int argc, char *argv[])
     } else {
 	for (int i = 1; i < argc - 1; ++i) {
 	    std::string site(argv[i]);
-	    add_site(&sites_to_parse, site);
+	    try { 
+		add_site(&sites_to_parse, site);
+	    } catch(ArgumentNotFoundException &e) {
+		std::cout << e.what() << std::endl;
+	    }
 	}
     }
     return sites_to_parse;
 }
 
-int main(int argc, char *argv[])
-{
-    // Check to make sure the input has the correct number of arguments
-    if (!arg_checker(argc)) {
-      std::cout << "usage: ksongs-webscraper <sites> <file ext>" << std::endl;
-      return EXIT_SUCCESS;
-    }
-    
-    SiteThreadManager thread_manager;
-    // Payload to parse
-    std::vector<enum SITE> sites_to_parse;
+void load_melon(std::chrono::year_month_day ymd_start, SiteThreadManager *thread_manager) {
 
-    // See if all the arguments are correctly spelled
-    try {
-	sites_to_parse = process_sites(argc, argv);
-    } catch (ArgumentNotFoundException &e) {
-	std::cout << e.what() << std::endl;
-	return EXIT_FAILURE;
-    }
-
-    // MELON
-    /*
     std::stringstream start_buffer, end_buffer;
     
-    auto ymd_start {std::chrono::day(12)/std::chrono::April/2010};
     auto sd_start = std::chrono::sys_days{ymd_start};
     
     do {
@@ -129,7 +112,7 @@ int main(int argc, char *argv[])
 	melon_info->start_date = start_buffer.str();
 	melon_info->end_date = end_buffer.str();
 
-	thread_manager.load_site_info(melon_info);
+	thread_manager->load_site_info(melon_info);
 
 	if (start_buffer.str().compare("20120805") == 0) 
 	    sd_start += std::chrono::days(8);
@@ -137,13 +120,12 @@ int main(int argc, char *argv[])
 	    sd_start += std::chrono::days(7);
 
     } while (start_buffer.str().compare("20201214") != 0);
-    */
+}
 
-    // BUGS
-    /*
+void load_bugs(std::chrono::year_month_day ymd_start, SiteThreadManager *thread_manager) {
+
     std::stringstream start_buffer, end_buffer;
     
-    auto ymd_start {std::chrono::day(10)/std::chrono::April/2010};
     auto sd_start = std::chrono::sys_days{ymd_start};
     
     do {
@@ -168,7 +150,7 @@ int main(int argc, char *argv[])
 	bugs_info->start_date = start_buffer.str();
 	bugs_info->end_date = end_buffer.str();
 
-	thread_manager.load_site_info(bugs_info);
+	thread_manager->load_site_info(bugs_info);
 
 	sd_start += std::chrono::days(7);
 	std::cout << start_buffer.str() << std::endl;
@@ -178,13 +160,12 @@ int main(int argc, char *argv[])
 	    std::cout << start_buffer.str() << std::endl;
 	}
     } while (start_buffer.str().compare("20201228") != 0);
-    */
+}
 
-    // GENIE
-    /*
+void load_genie(std::chrono::year_month_day ymd_start, SiteThreadManager *thread_manager) {
+
     std::stringstream start_buffer, end_buffer;
     
-    auto ymd_start {std::chrono::day(20)/std::chrono::March/2012};
     auto sd_start = std::chrono::sys_days{ymd_start};
     
     do {
@@ -209,22 +190,45 @@ int main(int argc, char *argv[])
 	genie_info->start_date = start_buffer.str();
 	genie_info->end_date = end_buffer.str();
 
-	thread_manager.load_site_info(genie_info);
+	thread_manager->load_site_info(genie_info);
 
 	sd_start += std::chrono::days(7);
 	std::cout << start_buffer.str() << std::endl;
 	
     } while (start_buffer.str().compare("20201228") != 0);
-    */
-    // GAON
-    
+}
+
+void load_gaon_digital(SiteThreadManager *thread_manager) {
+ 
+    for (int i = 17; i < 53; ++i) {
+	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
+	info->site_type = GAON_DIGITAL;
+	info->week = i;
+	info->year = 2010;
+	info->type = DIGITAL;
+	thread_manager->load_site_info(info);
+    }
+    for (size_t i = 2011; i < 2021; ++i) {
+	for (size_t j = 1; j < 53; ++j) {
+	    std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
+	    info->site_type = GAON_DIGITAL;
+	    info->week = j;
+	    info->year = i;
+	    info->type = DIGITAL;
+	    thread_manager->load_site_info(info);
+	}
+    }
+}
+
+void load_gaon_download(SiteThreadManager *thread_manager) {
+
     for (int i = 17; i < 53; ++i) {
 	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
 	info->site_type = GAON_DOWNLOAD;
 	info->week = i;
 	info->year = 2010;
 	info->type = DOWNLOAD;
-	thread_manager.load_site_info(info);
+	thread_manager->load_site_info(info);
     }
     for (size_t i = 2011; i < 2021; ++i) {
 	for (size_t j = 1; j < 53; ++j) {
@@ -233,30 +237,124 @@ int main(int argc, char *argv[])
 	    info->week = j;
 	    info->year = i;
 	    info->type = DOWNLOAD;
-	    thread_manager.load_site_info(info);
+	    thread_manager->load_site_info(info);
 	}
     }
-    thread_manager.load_all_sites_to_execution_queue();
-    thread_manager.execute_all();
-    std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>* data = thread_manager.get_extracted_data();
-    std::cout << data->size() << std::endl;
-    for (auto const& [site_info, song_info] : *data) {
-	std::cout << "For date: " << site_info->start_date << std::endl;
-	for (auto const& [rank, song] : song_info) {
-	    std::cout << rank << " : " << song->title << std::endl;  
+}
+
+
+// With Gaon, we can calculate the date through week and year
+void load_gaon_streaming(SiteThreadManager *thread_manager) {
+    
+    for (int i = 17; i < 53; ++i) {
+	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
+	info->site_type = GAON_STREAMING;
+	info->week = i;
+	info->year = 2010;
+	info->type = STREAMING;
+	thread_manager->load_site_info(info);
+    }
+    for (size_t i = 2011; i < 2021; ++i) {
+	for (size_t j = 1; j < 53; ++j) {
+	    std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
+	    info->site_type = GAON_STREAMING;
+	    info->week = j;
+	    info->year = i;
+	    info->type = STREAMING;
+	    thread_manager->load_site_info(info);
 	}
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    // Check to make sure the input has the correct number of arguments
+    if (!arg_checker(argc)) {
+      std::cout << "usage: ksongs-webscraper <sites> <file ext>" << std::endl;
+      return EXIT_SUCCESS;
+    }
+    
+    SiteThreadManager thread_manager;
+    // Payload to parse
+    std::vector<enum SITE> sites_to_parse;
+
+    // See if all the arguments are correctly spelled
+    try {
+	sites_to_parse = process_sites(argc, argv);
+    } catch (ArgumentNotFoundException &e) {
+	std::cout << e.what() << std::endl;
+	return EXIT_FAILURE;
     }
 
-    OutputWriter writer(GAON_DOWNLOAD);
-    writer.execute_output(data);
-
-    for (auto const& [site_info, song_info] : *data) {
-	for (auto const& [rank, song] : song_info) { 
-	    std::shared_ptr<Song> song_ptr = std::dynamic_pointer_cast<Song>(song);
-	    song_ptr.reset();
-	}
-	std::shared_ptr<SiteInfo> info = std::dynamic_pointer_cast<SiteInfo>(site_info);
-	info.reset();
+    OutputWriter writer;
+    std::string file_path = argv[argc - 1];
+    if (file_path.find(".csv") != std::string::npos) {
+	writer.set_output(file_path);
     }
+
+    std::chrono::year_month_day ymd_start;
+    for (auto const& site : sites_to_parse) {
+	switch (site) {
+	    case MELON:
+		{
+		    ymd_start = std::chrono::day(12)/std::chrono::April/2010; // 4-11-2010
+		    load_melon(ymd_start, &thread_manager);
+		    break;
+		}
+	    case BUGS:
+		{
+		    ymd_start = std::chrono::day(10)/std::chrono::April/2010; // 4-09-2010
+		    load_bugs(ymd_start, &thread_manager);
+		    break;
+		}
+	    case GENIE:
+		{
+		    ymd_start = std::chrono::day(20)/std::chrono::March/2012; // 3-19-2012
+		    load_genie(ymd_start, &thread_manager);
+		    break;
+		}
+	    case GAON_DIGITAL:
+		{
+		    load_gaon_digital(&thread_manager);
+		    break;
+		}
+	    case GAON_DOWNLOAD:
+		{
+		    load_gaon_download(&thread_manager);
+		    break;
+		}
+	    case GAON_STREAMING:
+		{
+		    load_gaon_streaming(&thread_manager);
+		    break;
+		}
+	    default:
+		break;
+	}
+
+	writer.set_site_to_use(site);
+	thread_manager.load_all_sites_to_execution_queue();
+	thread_manager.execute_all();
+	std::map<std::shared_ptr<SiteInfo>, std::map<int, std::shared_ptr<Song>>>* data = thread_manager.get_extracted_data();
+	
+	for (auto const& [site_info, song_info] : *data) {
+	    std::cout << "For date: " << site_info->start_date << std::endl;
+	    for (auto const& [rank, song] : song_info) {
+		std::cout << rank << " : " << song->title << std::endl;  
+	    }
+	}
+
+	err_output.close();
+	writer.execute_output(data);
+
+	for (auto const& [site_info, song_info] : *data) {
+	    for (auto const& [rank, song] : song_info) { 
+		std::shared_ptr<Song> song_ptr = std::dynamic_pointer_cast<Song>(song);
+		song_ptr.reset();
+	    }
+	    std::shared_ptr<SiteInfo> info = std::dynamic_pointer_cast<SiteInfo>(site_info);
+	    info.reset();
+	}
+    } 
     return EXIT_SUCCESS;
 }
