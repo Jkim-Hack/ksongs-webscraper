@@ -123,9 +123,11 @@ void GenieParser::scrape_album(ID *ids, myhtml_tree_t* tree, myhtml_tree_node_t*
 		    ids->song_id = extract_ids_from_js(song_id)[0];
 		    // Getting artist id
 		    myhtml_tree_node_t *artist_node = myhtml_get_nodes_by_attribute_value_begin(tree, NULL, tr_nodes->list[i], true, "onclick", 7, "fnViewArtist", 12, NULL)->list[0];
-		    attrs = get_node_attrs(artist_node);
-		    std::string onclick_attr = attrs["onclick"];
-		    ids->artist_ids.push_back(extract_ids_from_js(onclick_attr)[0]);
+		    if (artist_node != NULL) {
+			attrs = get_node_attrs(artist_node);
+			std::string onclick_attr = attrs["onclick"];
+			ids->artist_ids.push_back(extract_ids_from_js(onclick_attr)[0]);
+		    }
 		    break;
 		}
 	    }

@@ -15,7 +15,7 @@ void OutputWriter::set_site_to_use(SITE site_to_use)
 
 std::string normalize_date(std::string date) 
 {
-    date.insert(4, "/");
+    date.insert(4, "/"); 
     date.insert(7, "/");
     return date;
 }
@@ -125,7 +125,7 @@ void OutputWriter::execute_output(std::map<std::shared_ptr<SiteInfo>, std::map<i
 				output << gaon_song->artists[j] << " | "; 
 			    }
 			}
-			output << "\",\"" << gaon_song->album << "\",";
+			output << "\",\"" << gaon_song->album << "\"";
 			for (auto const& [site, id] : gaon_song->site_ids) {
 			    output << "," << id.song_id << ",";
 			    if (id.artist_ids.size() < 1) {
@@ -166,7 +166,7 @@ void OutputWriter::execute_output(std::map<std::shared_ptr<SiteInfo>, std::map<i
 				output << gaon_song->artists[j] << " | "; 
 			    }
 			}
-			output << "\",\"" << gaon_song->album << "\",";
+			output << "\",\"" << gaon_song->album << "\"";
 			for (auto const& [site, id] : gaon_song->site_ids) {
 			    output << "," << id.song_id << ",";
 			    if (id.artist_ids.size() < 1) {

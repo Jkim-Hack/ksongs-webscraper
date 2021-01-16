@@ -61,7 +61,10 @@ void GaonParser::scrape_melon_song(std::shared_ptr<GaonSong> curr_song, std::str
     myhtml_parse(tree, MyENCODING_UTF_8, html_buffer, strlen(html_buffer));
     
     myhtml_tree_node_t *node = myhtml_tree_get_document(tree);
-    
+    if (html.length() < 4) {
+	std::cout << "ERROR ERROR ERROR ERROR" << std::endl;
+	std::cout << html << std::endl;
+    }
     MelonParser::scrape_album(&melon_ids, tree, node, curr_song->title);
 
     std::cout << melon_ids.song_id << " : " << melon_ids.album_id << " : " << melon_ids.artist_ids.size() << std::endl; 
@@ -133,10 +136,14 @@ std::map<SITE, long> GaonParser::get_all_song_ids(myhtml_tree_t* tree, myhtml_co
     // Enumerate over the SITE enums to Genie
     for (int i = MELON; i <= GENIE; ++i) {
 	myhtml_tree_node_t *a_node = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, li_nodes->list[i], MyHTML_TAG_A, NULL)->list[0];
-	std::map<std::string, std::string> node_attrs = get_node_attrs(a_node);
-	std::string href_string = node_attrs["href"];
-	SITE site = (SITE)i;
-	all_song_ids[site] = extract_ids_from_js(href_string)[1];
+	if (a_node != NULL) {
+	    std::map<std::string, std::string> node_attrs = get_node_attrs(a_node);
+	    if (node_attrs.find("href") != node_attrs.end()) {
+		std::string href_string = node_attrs["href"];
+		SITE site = (SITE)i;
+		all_song_ids[site] = extract_ids_from_js(href_string)[1];
+	    }
+	}
     }
 
     return all_song_ids;
@@ -170,6 +177,7 @@ void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tre
 		    {
 			// Melon doesn't have an 's' at the end of the 'https' substring
 			url.insert(http_pos+1, "s");
+			std::string melon_html = request_html(url);
 			scrape_melon_song(curr_song, request_html(url));
 			// If the song failed to scrape then print to error file
 			if (curr_song->site_ids[MELON].song_id == 0) 
@@ -235,32 +243,33 @@ void GaonParser::extract_dates(std::shared_ptr<SiteInfo> site_info, const char* 
 	myhtml_collection_t *option_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, selection_node, MyHTML_TAG_OPTION, NULL);
 	if (option_nodes->length > 0) {
 	    if (std::shared_ptr<GaonInfo> info = std::dynamic_pointer_cast<GaonInfo>(site_info)) {
+		
+		info->start_date = "";
+		info->end_date = "";
 		int week = info->week;
 		int year = info->year;
 
-		int total_from_start;
+		// Get the date from looking at the option node
+		std::string year_week = std::to_string(year) + std::to_string(week);
+		myhtml_collection_t *date_nodes = myhtml_get_nodes_by_attribute_value(tree, NULL, selection_node, false, "value", 5, year_week.c_str(), year_week.length(), NULL);
+		if (date_nodes->length > 0) {
+		    // Now get the select node for our date and load in the siteinfo
+		    myhtml_tree_node_t *selected_node = date_nodes->list[0];
+		    if (selected_node != NULL) {
+			myhtml_tree_node_t *text_node = myhtml_node_child(selected_node);
+			std::string dates = myhtml_node_text(text_node, NULL);
 
-		// The week we want is the present week - how many weeks before it until our desired week
-		// +2 our offset because the first available date is week 2 and year 2010
-		total_from_start = ((year - 2010) * 52) + week + 2; 
-		int select_node_index = option_nodes->length - total_from_start;
+			// separate the start and end and remove unnecessary characters
+			size_t delim_pos = dates.find("~");
+			std::string start = dates.substr(0, delim_pos);
+			std::string end = dates.substr(delim_pos+1, dates.length() - delim_pos);
+			start.erase(std::remove(start.begin(), start.end(), '.'), start.end());
+			end.erase(std::remove(end.begin(), end.end(), '.'), end.end());
 
-		// Now get the select node for our date and load in the siteinfo
-		myhtml_tree_node_t *selected_node = option_nodes->list[select_node_index];
-		if (selected_node != NULL) {
-		    myhtml_tree_node_t *text_node = myhtml_node_child(selected_node);
-		    std::string dates = myhtml_node_text(text_node, NULL);
-
-		    // separate the start and end and remove unnecessary characters
-		    size_t delim_pos = dates.find("~");
-		    std::string start = dates.substr(0, delim_pos);
-		    std::string end = dates.substr(delim_pos+1, dates.length() - delim_pos);
-		    start.erase(std::remove(start.begin(), start.end(), '.'), start.end());
-		    end.erase(std::remove(end.begin(), end.end(), '.'), end.end());
-
-		    // load in the info
-		    info->start_date = start;
-		    info->end_date = end;
+			// load in the info
+			info->start_date = start;
+			info->end_date = end;
+		    }
 		}
 	    }
 	}

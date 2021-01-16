@@ -112,8 +112,14 @@ void SiteThreadManager::execute_next_thread()
 		    std::string html = parser->request_html(site_info->url);
 		    if (type == GAON_DIGITAL || type == GAON_DOWNLOAD || type == GAON_STREAMING) {
 			GaonParser *gaon_parser = dynamic_cast<GaonParser *>(parser);
-			if (html != "") {
+			if (html.length() > 0) {
 			    gaon_parser->extract_dates(site_info, html.c_str());
+			    if (site_info->start_date.length() < 1 || site_info->end_date.length() < 1) {
+				std::cout << "Date not found" << std::endl;
+				delete parser;
+				parser = nullptr;
+				continue;
+			    }
 			} else {
 			    std::cout << "html: " << html;
 			}

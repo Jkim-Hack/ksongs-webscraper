@@ -183,7 +183,7 @@ void MelonParser::scrape_album(ID *id, myhtml_tree_t* tree, myhtml_tree_node_t* 
 { 
     bool found_song_id = false;
 
-    myhtml_collection_t *tbody_nodes = myhtml_get_nodes_by_tag_id(tree, NULL, MyHTML_TAG_TBODY, NULL);
+    myhtml_collection_t *tbody_nodes = myhtml_get_nodes_by_tag_id_in_scope(tree, NULL, node, MyHTML_TAG_TBODY, NULL);
     if (tbody_nodes->length < 1) {
 	// html is not valid
 	std::cout << "INVALID HTML" << std::endl;

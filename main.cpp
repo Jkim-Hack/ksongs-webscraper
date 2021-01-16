@@ -200,7 +200,7 @@ void load_genie(std::chrono::year_month_day ymd_start, SiteThreadManager *thread
 
 void load_gaon_digital(SiteThreadManager *thread_manager) {
  
-    for (int i = 17; i < 53; ++i) {
+    for (int i = 17; i <= 53; ++i) {
 	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
 	info->site_type = GAON_DIGITAL;
 	info->week = i;
@@ -208,8 +208,8 @@ void load_gaon_digital(SiteThreadManager *thread_manager) {
 	info->type = DIGITAL;
 	thread_manager->load_site_info(info);
     }
-    for (size_t i = 2011; i < 2021; ++i) {
-	for (size_t j = 1; j < 53; ++j) {
+    for (size_t i = 2011; i <= 2021; ++i) {
+	for (size_t j = 1; j <= 53; ++j) {
 	    std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
 	    info->site_type = GAON_DIGITAL;
 	    info->week = j;
@@ -222,7 +222,7 @@ void load_gaon_digital(SiteThreadManager *thread_manager) {
 
 void load_gaon_download(SiteThreadManager *thread_manager) {
 
-    for (int i = 17; i < 53; ++i) {
+    for (int i = 17; i <= 53; ++i) {
 	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
 	info->site_type = GAON_DOWNLOAD;
 	info->week = i;
@@ -231,7 +231,7 @@ void load_gaon_download(SiteThreadManager *thread_manager) {
 	thread_manager->load_site_info(info);
     }
     for (size_t i = 2011; i < 2021; ++i) {
-	for (size_t j = 1; j < 53; ++j) {
+	for (size_t j = 1; j <= 53; ++j) {
 	    std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
 	    info->site_type = GAON_DOWNLOAD;
 	    info->week = j;
@@ -246,7 +246,7 @@ void load_gaon_download(SiteThreadManager *thread_manager) {
 // With Gaon, we can calculate the date through week and year
 void load_gaon_streaming(SiteThreadManager *thread_manager) {
     
-    for (int i = 17; i < 53; ++i) {
+    for (int i = 17; i <= 53; ++i) {
 	std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
 	info->site_type = GAON_STREAMING;
 	info->week = i;
@@ -255,7 +255,7 @@ void load_gaon_streaming(SiteThreadManager *thread_manager) {
 	thread_manager->load_site_info(info);
     }
     for (size_t i = 2011; i < 2021; ++i) {
-	for (size_t j = 1; j < 53; ++j) {
+	for (size_t j = 1; j <= 53; ++j) {
 	    std::shared_ptr<GaonInfo> info = std::make_shared<GaonInfo>();
 	    info->site_type = GAON_STREAMING;
 	    info->week = j;
