@@ -131,6 +131,7 @@ std::string Parser::request_html(std::string url)
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:84.0) Gecko/20100101 Firefox/84.0");
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 20); // 20 sec timeout
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &write);    
 	std::cout << url.c_str() << std::endl;

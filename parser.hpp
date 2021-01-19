@@ -133,6 +133,7 @@ struct GaonInfo : SiteInfo {
 
 struct GaonSong : Song {
     long gaon_index;
+    std::map<SITE, std::string> site_htmls;
     std::map<SITE, ID> site_ids;
     virtual ~GaonSong() = default;
 };

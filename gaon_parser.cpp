@@ -172,13 +172,14 @@ void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tre
 	    url.erase(std::remove(url.begin(), url.end(), '\"'), url.end());
 	    
 	    size_t http_pos = url.find_first_of("p");
+	    std::string site_html;
 	    switch(site) {
 		case MELON:
 		    {
 			// Melon doesn't have an 's' at the end of the 'https' substring
 			url.insert(http_pos+1, "s");
-			std::string melon_html = request_html(url);
-			scrape_melon_song(curr_song, request_html(url));
+			site_html = request_html(url);
+			scrape_melon_song(curr_song, site_html);
 			// If the song failed to scrape then print to error file
 			if (curr_song->site_ids[MELON].song_id == 0) 
 			    err_output << "ERROR: " << url  << " Target: " << curr_song->title << std::endl;
@@ -188,7 +189,8 @@ void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tre
 		    {
 			// Same as the melon url 
 			url.insert(http_pos+1, "s");
-			scrape_bugs_song(curr_song, request_html(url));
+			site_html = request_html(url);
+			scrape_bugs_song(curr_song, site_html);
 			// Same as melon error printing
 			if (curr_song->site_ids[BUGS].song_id == 0) 
 			    err_output << "ERROR: " << url  << " Target: " << curr_song->title << std::endl;
@@ -197,7 +199,8 @@ void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tre
 		case GENIE:
 		    {
 			// Genie has the correct format so no need to insert an 's'
-			scrape_genie_song(curr_song, request_html(url));
+			site_html = request_html(url);
+			scrape_genie_song(curr_song, site_html);
 			// Same as melon and bugs with error printing
 			if (curr_song->site_ids[GENIE].song_id == 0) 
 			    err_output << "ERROR: " << url  << " Target: " << curr_song->title << std::endl;
@@ -207,6 +210,7 @@ void GaonParser::extract_all_ids(std::shared_ptr<GaonSong> curr_song, myhtml_tre
 		    // TODO: ERROR: we should not be getting anything else
 		    break;
 	    }
+	    curr_song->site_htmls.insert(std::pair<SITE, std::string>(site, site_html));
 	} else {
 	    std::cout << html << std::endl;
 	    // TODO: Throw exception

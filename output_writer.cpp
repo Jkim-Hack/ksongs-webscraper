@@ -13,6 +13,13 @@ void OutputWriter::set_site_to_use(SITE site_to_use)
     this->site_to_use = site_to_use;
 }
 
+void OutputWriter::write_html(std::string filepath, std::string html) 
+{
+    std::ofstream output(filepath);
+    output << html;
+    output.close();
+}
+
 std::string normalize_date(std::string date) 
 {
     date.insert(4, "/"); 

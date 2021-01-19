@@ -7,3 +7,7 @@ parser_o:
 outputs.zip: outputs/*.csv outputs/*.xlsx
 	# zip the outputs
 	zip $@ $^
+
+htmls.zip: html_downloaded/*
+	# zip the outputs
+	zip $@ $^
